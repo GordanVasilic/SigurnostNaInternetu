@@ -68,10 +68,10 @@ export default function AdminPage() {
       return () => clearTimeout(timer);
     }
 
-    // 2. If status is question and autoAdvance is enabled, advance after 15s
+    // 2. If status is question and autoAdvance is enabled, advance after 20s
     if (quizState.status === "question" && autoAdvance) {
       const elapsed = Date.now() - (quizState.questionStartTime || Date.now());
-      const remainingMs = Math.max(0, 15500 - elapsed); // 15.5s buffer
+      const remainingMs = Math.max(0, 20500 - elapsed); // 20.5s buffer
 
       if (timerRef.current) clearTimeout(timerRef.current);
 
@@ -386,9 +386,9 @@ export default function AdminPage() {
               <div className="flex items-center gap-3">
                 <Clock className="w-5 h-5 text-cyan-400" />
                 <div>
-                  <span className="text-sm font-bold text-white">Automatski tajmer: 15 sekundi</span>
+                  <span className="text-sm font-bold text-white">Automatski tajmer: 20 sekundi</span>
                   <p className="text-xs text-slate-400">
-                    Pitanja automatski prelaze na sledeće čim istekne 15s.
+                    Pitanja automatski prelaze na sledeće čim istekne 20s.
                   </p>
                 </div>
               </div>

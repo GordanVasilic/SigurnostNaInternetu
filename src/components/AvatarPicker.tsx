@@ -31,37 +31,37 @@ export function AvatarPicker({ selectedAvatarId, onSelectAvatar }: AvatarPickerP
   return (
     <div className="w-full">
       {/* Selected Avatar Preview Banner */}
-      <div className="flex items-center justify-between p-2.5 mb-2.5 rounded-2xl bg-slate-800/80 border border-slate-700/80">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between p-3.5 mb-3 rounded-2xl bg-slate-800/80 border border-slate-700/80 shadow-md">
+        <div className="flex items-center gap-3.5">
           <div
-            className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl bg-gradient-to-br ${selectedAvatar.bgColor} shadow-md ring-2 ring-cyan-400 shrink-0`}
+            className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl bg-gradient-to-br ${selectedAvatar.bgColor} shadow-lg ring-2 ring-cyan-400 shrink-0`}
           >
             {selectedAvatar.emoji}
           </div>
           <div>
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
               Tvoj izabrani avatar:
             </span>
-            <span className="text-sm font-black text-white">
+            <span className="text-base font-black text-white">
               {selectedAvatar.label}
             </span>
           </div>
         </div>
-        <div className="text-xs font-bold text-cyan-400 flex items-center gap-1 bg-cyan-950/60 px-2.5 py-1 rounded-lg border border-cyan-800/50">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>40 dostupnih</span>
+        <div className="text-xs font-bold text-cyan-400 flex items-center gap-1.5 bg-cyan-950/70 px-3 py-1.5 rounded-xl border border-cyan-800/50">
+          <Sparkles className="w-4 h-4" />
+          <span>40 avatara</span>
         </div>
       </div>
 
       {/* Category Tabs for Quick Mobile Filtering */}
-      <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1 scrollbar-none">
+      <div className="flex gap-2 mb-2.5 overflow-x-auto pb-1 scrollbar-none">
         <button
           type="button"
           onClick={() => setFilter("all")}
-          className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 active:scale-95 ${
+          className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all shrink-0 active:scale-95 ${
             filter === "all"
-              ? "bg-cyan-500 text-slate-950 shadow-sm"
-              : "bg-slate-800/60 text-slate-400 hover:text-white border border-slate-700/40"
+              ? "bg-cyan-500 text-slate-950 shadow-md font-black"
+              : "bg-slate-800/80 text-slate-300 hover:text-white border border-slate-700/50"
           }`}
         >
           Svi (40)
@@ -69,10 +69,10 @@ export function AvatarPicker({ selectedAvatarId, onSelectAvatar }: AvatarPickerP
         <button
           type="button"
           onClick={() => setFilter("tech")}
-          className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 active:scale-95 ${
+          className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all shrink-0 active:scale-95 ${
             filter === "tech"
-              ? "bg-cyan-500 text-slate-950 shadow-sm"
-              : "bg-slate-800/60 text-slate-400 hover:text-white border border-slate-700/40"
+              ? "bg-cyan-500 text-slate-950 shadow-md font-black"
+              : "bg-slate-800/80 text-slate-300 hover:text-white border border-slate-700/50"
           }`}
         >
           Sajber & IT
@@ -80,10 +80,10 @@ export function AvatarPicker({ selectedAvatarId, onSelectAvatar }: AvatarPickerP
         <button
           type="button"
           onClick={() => setFilter("animals")}
-          className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 active:scale-95 ${
+          className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all shrink-0 active:scale-95 ${
             filter === "animals"
-              ? "bg-cyan-500 text-slate-950 shadow-sm"
-              : "bg-slate-800/60 text-slate-400 hover:text-white border border-slate-700/40"
+              ? "bg-cyan-500 text-slate-950 shadow-md font-black"
+              : "bg-slate-800/80 text-slate-300 hover:text-white border border-slate-700/50"
           }`}
         >
           Životinje
@@ -91,10 +91,10 @@ export function AvatarPicker({ selectedAvatarId, onSelectAvatar }: AvatarPickerP
         <button
           type="button"
           onClick={() => setFilter("heroes")}
-          className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 active:scale-95 ${
+          className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all shrink-0 active:scale-95 ${
             filter === "heroes"
-              ? "bg-cyan-500 text-slate-950 shadow-sm"
-              : "bg-slate-800/60 text-slate-400 hover:text-white border border-slate-700/40"
+              ? "bg-cyan-500 text-slate-950 shadow-md font-black"
+              : "bg-slate-800/80 text-slate-300 hover:text-white border border-slate-700/50"
           }`}
         >
           Heroji & Zvijezde
@@ -102,7 +102,7 @@ export function AvatarPicker({ selectedAvatarId, onSelectAvatar }: AvatarPickerP
       </div>
 
       {/* Touch-Friendly Grid (Optimized for Mobile Phones) */}
-      <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 max-h-56 sm:max-h-64 overflow-y-auto p-2 rounded-2xl bg-slate-900/80 border border-slate-800 scrollbar-thin scrollbar-thumb-slate-700 touch-pan-y">
+      <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2.5 max-h-60 sm:max-h-68 overflow-y-auto p-2.5 rounded-2xl bg-slate-900/80 border border-slate-800 scrollbar-thin scrollbar-thumb-slate-700 touch-pan-y">
         {filteredAvatars.map((av) => {
           const isSelected = av.id === selectedAvatarId;
           return (
@@ -117,16 +117,16 @@ export function AvatarPicker({ selectedAvatarId, onSelectAvatar }: AvatarPickerP
               }`}
             >
               <div
-                className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-xl sm:text-2xl bg-gradient-to-br ${av.bgColor} shadow-sm group-hover:scale-105 transition-transform`}
+                className={`w-12 h-12 sm:w-13 sm:h-13 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl bg-gradient-to-br ${av.bgColor} shadow-sm group-hover:scale-105 transition-transform`}
               >
                 {av.emoji}
               </div>
-              <span className="mt-1 text-[10px] font-medium text-slate-300 truncate max-w-full px-0.5">
+              <span className="mt-1 text-xs font-semibold text-slate-300 truncate max-w-full px-0.5">
                 {av.label.split(" ")[1] || av.label}
               </span>
               {isSelected && (
-                <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center shadow">
-                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center shadow">
+                  <Check className="w-3 h-3 stroke-[3]" />
                 </div>
               )}
             </button>

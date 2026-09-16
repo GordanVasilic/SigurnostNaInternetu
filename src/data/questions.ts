@@ -5,195 +5,175 @@ export interface Question {
   correctIndex: number;
   explanation: string;
   category: string;
-  difficulty: "Osnovno" | "Srednje" | "Napredno";
 }
 
 export const QUIZ_QUESTIONS: Question[] = [
-  // --- NIVO 1: OSNOVNO (Zagrijavanje) ---
   {
     id: 1,
-    question: "Koji od navedenih pristupa kreiranju lozinke pruža NAJVEĆU otpornost na hakerske napade pogađanjem (Brute-force)?",
+    question: "Koja je najvažnija osobina jake lozinke za tvoj korisnički nalog?",
     options: [
-      "Kratka lozinka od 8 slova sa jednim brojem na kraju (npr. Lozinka1)",
-      "Fraza od 4 nepovezane riječi sa simbolima dužine 16+ znakova (tzv. Passphrase)",
-      "Korištenje istog komplikovanog niza karaktera na svim društvenim mrežama"
+      "Da se sastoji samo od tvog imena i godine rođenja",
+      "Da ima tačno 6 malih slova koja se lako pamte",
+      "Da je dugačka (12+ znakova) i kombinuje velika i mala slova, brojeve i simbole"
     ],
-    correctIndex: 1,
-    explanation: "Dužina je ključna: dugačke fraze (Passphrase) od 16+ znakova eksponencijalno povećavaju vrijeme potrebno računaru da pogodi lozinku (milijarde godina umjesto nekoliko sekundi).",
-    category: "Lozinke i Autentifikacija",
-    difficulty: "Osnovno"
+    correctIndex: 2, // C
+    explanation: "Dugačke lozinke koje kombinuju slova, brojeve i specijalne znakove (!, ?, #, $) računari ne mogu lako pogoditi. Nikada ne koristi jednostavno ime ili '123456'.",
+    category: "Lozinke"
   },
   {
     id: 2,
-    question: "Šta je 'Spear Phishing' i po čemu se razlikuje od običnog phishinga?",
+    question: "Šta je 'Phishing' (pecanje) na internetu?",
     options: [
-      "Slučajno slanje virusa preko USB memorije",
-      "Ciljani napad prilagođen konkretnoj osobi koristeći njene stvarne podatke sa mreže",
-      "Korištenje legalnih alata za provjeru brzine internet veze"
+      "Lažna poruka ili link koji pokušava da te prevari da otkriješ svoju lozinku ili podatke",
+      "Način da besplatno i legalno ubrzaš kućni internet",
+      "Igranje igrica o pecanju riba na telefonu"
     ],
-    correctIndex: 1,
-    explanation: "Dok običan phishing šalje milione istih nasumičnih poruka, Spear Phishing je precizno usmjeren na tebe – napadač zna tvoje ime, prijatelje ili školu kako bi poruka zvučala 100% uvjerljivo.",
-    category: "Socijalni Inženjering",
-    difficulty: "Osnovno"
+    correctIndex: 0, // A
+    explanation: "Phishing je prevara u kojoj se hakeri pretvaraju da su Instagram, banka ili podrška, šaljući lažan link kako bi ukrali tvoju šifru.",
+    category: "Prevare i Phishing"
   },
   {
     id: 3,
-    question: "Koji oblik dvofaktorske autentifikacije (2FA) se smatra NAJSIGURNIJIM od ponuđenih?",
+    question: "Šta označava dvofaktorska zaštita (2FA)?",
     options: [
-      "Verifikacioni SMS kod poslat na broj mobilnog telefona",
-      "Aplikacija za autentifikaciju (npr. Google/Microsoft Authenticator) ili hardverski ključ",
-      "Odgovor na sigurnosno pitanje: 'Koje je ime tvog prvog ljubimca?'"
+      "Korištenje istog naloga na dva različita računara u isto vrijeme",
+      "Dodatni sigurnosni korak (npr. SMS kod ili autentifikator) pored lozinke pri prijavi",
+      "Lozinka koju moraš unijeti dva puta zaredom"
     ],
-    correctIndex: 1,
-    explanation: "SMS poruke nisu šifrovane i podložne su presretanju i 'SIM Swap' prevarama kod operatera. Autentifikatorske aplikacije generišu jednokratne kodove lokalno na uređaju bez slanja preko mobilne mreže.",
-    category: "Lozinke i Autentifikacija",
-    difficulty: "Osnovno"
+    correctIndex: 1, // B
+    explanation: "2FA pruža dvostruku zaštitu: čak i ako neko sazna tvoju lozinku, ne može ući na tvoj profil bez koda koji stiže na tvoj telefon.",
+    category: "Sigurnost naloga"
   },
   {
     id: 4,
-    question: "Zašto je opasno koristiti besplatne javne Wi-Fi mreže (u kafićima, tržnim centrima) bez VPN zaštite?",
+    question: "Zašto treba biti oprezan sa besplatnim javnim Wi-Fi mrežama (u kafićima, parkovima)?",
     options: [
-      "Zato što troše bateriju telefona duplo brže",
-      "Napadači na istoj mreži mogu izvesti 'Man-in-the-Middle' napad i presresti nešifrovani saobraćaj",
-      "Javni Wi-Fi automatski briše sve instalirane aplikacije sa telefona"
+      "Zato što hakeri na istoj mreži mogu lakše presresti tvoje nezaštićene podatke i šifre",
+      "Zato što javni Wi-Fi odmah isprazni bateriju telefona",
+      "Zato što je zakonom zabranjeno koristiti internet van kuće"
     ],
-    correctIndex: 1,
-    explanation: "Na otvorenom Wi-Fi-ju svako može pratiti mrežni saobraćaj ili postaviti lažnu pristupnu tačku ('Evil Twin'). Za osjetljive prijave uvijek koristite mobilne podatke ili pouzdan VPN.",
-    category: "Mrežna Sigurnost",
-    difficulty: "Osnovno"
+    correctIndex: 0, // A
+    explanation: "Javne Wi-Fi mreže su često nezaštićene. Za prijavu na važne profile i plaćanje uvijek je sigurnije koristiti mobilni internet.",
+    category: "Mrežna zaštita"
   },
-
-  // --- NIVO 2: SREDNJE (Srednjoškolski nivo) ---
   {
     id: 5,
-    question: "Šta podrazumijeva 'OSINT' (Open Source Intelligence) tehnika koju hakeri često koriste prije napada?",
+    question: "Drugar ti preko poruke šalje link za 'besplatne skinove / Robux / krekovanu igricu'. Šta je najvjerovatnije u pitanju?",
     options: [
-      "Automatsko obaranje servera slanjem velikog broja zahtjeva",
-      "Prikupljanje javno dostupnih informacija o meti (objave, lokacije sa slika, komentari, stari forumi)",
-      "Programiranje igrica otvorenog koda"
+      "Pravi zvanični poklon od proizvođača igrice",
+      "Zvanična nagradna igra u kojoj svako dobija",
+      "Zlonamjerni virus ili lažna stranica koja služi za krađu tvog naloga"
     ],
-    correctIndex: 1,
-    explanation: "Čak i sitni detalji koje ostavljamo na profilima (škola, rođendan, ljubimac, lokacija iz pozadine slike) napadačima služe da sklope profil žrtve i provale lozinke ili sigurnosna pitanja.",
-    category: "Privatnost i OSINT",
-    difficulty: "Srednje"
+    correctIndex: 2, // C
+    explanation: "Iza ponuda za 'besplatne skinove, Robux ili čitove' najčešće se kriju kradljivci naloga. Nikada ne unosi svoje podatke na takve linkove!",
+    category: "Prevare u igricama"
   },
   {
     id: 6,
-    question: "Ako veb stranica ima ikonicu katanca i počinje sa 'https://', da li to garantuje da sajt NIJE lažan ili prevarantski?",
+    question: "Koji od navedenih podataka NIKADA ne bi trebalo javno objavljivati na profilu društvenih mreža?",
     options: [
-      "Da, katanac znači da je kompanija zvanično provjerena od strane policije",
-      "Ne! Katanac znači samo da je veza šifrovana, a i hakeri mogu besplatno postaviti HTTPS na lažni sajt",
-      "Da, nemoguće je napraviti lažni sajt koji posjeduje SSL sertifikat"
+      "Naziv omiljene pjesme ili omiljenog filma",
+      "Svoju tačnu kućnu adresu, broj telefona i lokaciju uživo",
+      "Ime omiljenog sportiste ili kluba za koji navijaš"
     ],
-    correctIndex: 1,
-    explanation: "Najčešća zabluda! HTTPS i katanac znače samo da niko 'usput' ne može pročitati podatke, ali ako podatke šaljete direktno na hakerski phishing sajt – oni idu pravo napadaču.",
-    category: "Web Sigurnost",
-    difficulty: "Srednje"
+    correctIndex: 1, // B
+    explanation: "Javnim dijeljenjem adrese, broja telefona ili lokacije uživo ugrožavaš svoju bezbjednost. Ti podaci treba da ostanu privatni.",
+    category: "Privatnost"
   },
   {
     id: 7,
-    question: "Šta je 'Infostealer' (kradljivac informacija) i kako najčešće dospijeva na računar mladih korisnika?",
+    question: "Šta predstavlja tvoj 'digitalni otisak' (digital footprint)?",
     options: [
-      "Zlonamjerni program skriven u 'besplatnim' krekovanim igricama, cheat-ovima i modovima sa Discorda/YouTube-a",
-      "Kvar na matičnoj ploči računara izazvan prašinom",
-      "Dodatak za pretraživač koji legalno blokira reklame"
+      "Sve slike, poruke, komentari i objave koje ostaviš na internetu i koje ostaju trajno zabilježene",
+      "Skeniran otisak prsta kojim otključavaš pametni telefon",
+      "Broj koraka i kilometara koje pređeš dok nosiš telefon"
     ],
-    correctIndex: 0,
-    explanation: "Infostealeri (kao što su RedLine ili Lumma) vrebaju u lažnim instalacijama igara i kradu sačuvane lozinke iz browsera, Discord tokene, sesijske kolačiće (cookies) i kripto-novčanike u djeliću sekunde.",
-    category: "Zlonamjerni Softver",
-    difficulty: "Srednje"
+    correctIndex: 0, // A
+    explanation: "Sve što objaviš na internetu ostaje negdje sačuvano čak i ako obrišeš. Zato uvijek razmisli prije nego što nešto postaviš!",
+    category: "Privatnost"
   },
   {
     id: 8,
-    question: "Koje je zlatno '3-2-1' pravilo za pravljenje rezervnih kopija (Backup) radi zaštite od Ransomware ucjenjivača?",
+    question: "Dobijaš poruku od profila svog druga: 'Hitno mi pošalji 20 KM ili kod koji ti stigne na SMS!'. Šta prvo treba posumnjati?",
     options: [
-      "3 lozinke, 2 naloga, 1 uređaj",
-      "3 kopije podataka, na 2 različita medija (npr. disk i oblak), od kojih je 1 lokacija odvojena (offline)",
-      "Praviti backup svakog 3. dana, u 2 sata, u trajanju od 1 minut"
+      "Drug je u stvarnoj opasnosti i treba odmah poslati novac",
+      "Sistem telefona sam greškom šalje poruke",
+      "Neko je hakovao profil tvog druga i sada pokušava prevariti njegove prijatelje"
     ],
-    correctIndex: 1,
-    explanation: "Pravilo 3-2-1 garantuje oporavak čak i ako Ransomware zaključa tvoj računar i eksterni disk koji je bio uključen: treća kopija na offline lokaciji ostaje netaknuta!",
-    category: "Zaštita Podataka",
-    difficulty: "Srednje"
+    correctIndex: 2, // C
+    explanation: "Kada profil prijatelja traži novac ili SMS kodove, prvo ga nazovi običnim telefonskim pozivom i provjeri da li je njegov nalog hakovan.",
+    category: "Prevare"
   },
   {
     id: 9,
-    question: "Šta predstavlja napad 'otmicom sesije' (Session Hijacking) putem ukradenih kolačića (Cookies)?",
+    question: "Šta označava ikonica zaključanog katanca pored veb adrese (https)?",
     options: [
-      "Fizička krađa laptopa iz učionice",
-      "Napadač kopira tvoj aktivni prijavljeni 'token' i ulazi na tvoj nalog BEZ potrebe da zna tvoju lozinku ili 2FA kod",
-      "Promjena teme operativnog sistema u tamni režim"
+      "Sajt je potpuno zabranjen za maloljetnike",
+      "Veza sa sajtom je šifrovana i bezbjednija za prenos podataka",
+      "Sajt nema nikakve reklame i potpuno je besplatan"
     ],
-    correctIndex: 1,
-    explanation: "Kada označiš 'Zapamti me' na sajtu, browser čuva sesijski kolačić. Ako ga malver ukrade, napadač ga ubaci u svoj pregledač i sajt misli da je to tvoja prijavljena sesija, zaobilazeći i 2FA!",
-    category: "Web Sigurnost",
-    difficulty: "Srednje"
+    correctIndex: 1, // B
+    explanation: "Katanac i 'https' označavaju da je prenos podataka između tvog telefona i sajta šifrovan, što štiti podatke od prisluškivanja.",
+    category: "Web Sigurnost"
   },
-
-  // --- NIVO 3: NAPREDNO (Pravi sajber izazov) ---
   {
     id: 10,
-    question: "Šta je 'DDoS' (Distributed Denial of Service) napad?",
+    question: "Šta je 'Deepfake' prevara na internetu?",
     options: [
-      "Slanje virusa koji briše operativni sistem Windows",
-      "Preplavljivanje servera ogromnim brojem lažnih zahtjeva sa mreže hiljada zaraženih uređaja (Botnet) radi njegovog obaranja",
-      "Šifrovanje privatnih poruka vojnim algoritmom"
+      "Korištenje vještačke inteligencije (AI) za lažiranje nečijeg glasa ili lica u videu ili pozivu",
+      "Igranje podvodnih video igrica preko računara",
+      "Brisanje starih i mutnih fotografija iz memorije telefona"
     ],
-    correctIndex: 1,
-    explanation: "DDoS koristi armiju kompromitovanih uređaja (Botnet – od računara do pametnih kamera i rutera) da istovremeno pošalje gigabajte saobraćaja prema meti dok se server ne zaguši i prestane sa radom.",
-    category: "Mrežni Napadi",
-    difficulty: "Napredno"
+    correctIndex: 0, // A
+    explanation: "Danas vještačka inteligencija može vjerno klonirati nečiji glas ili lice. Zato uvijek provjeri sumnjive pozive i video poruke koje traže novac!",
+    category: "AI i Tehnologija"
   },
   {
     id: 11,
-    question: "Kako se naziva prevara u kojoj se koristi vještačka inteligencija (AI) za kloniranje nečijeg glasa ili lica radi iznude novca?",
+    question: "Šta podrazumijeva pojam 'Cyberbullying' (digitalno nasilje)?",
     options: [
-      "Deepfake socijalni inženjering",
-      "Phreaking",
-      "SQL Injekcija"
+      "Kvarenje miša ili tastature na školskom računaru",
+      "Igranje akcionih video igrica protiv drugih igrača",
+      "Vrijeđanje, ismijavanje, prijetnje ili isključivanje nekoga putem poruka i društvenih mreža"
     ],
-    correctIndex: 0,
-    explanation: "Sa samo nekoliko sekundi audio snimka nečijeg glasa sa TikToka ili Instagrama, AI danas može generisati telefonski poziv u kojem glas zvuči identično kao tvoj prijatelj ili član porodice koji 'hitno traži pomoć'.",
-    category: "AI i Prevare",
-    difficulty: "Napredno"
+    correctIndex: 2, // C
+    explanation: "Digitalno nasilje ostavlja stvarne i bolne posljedice. Na internetu važe ista pravila lijepog ponašanja kao i u stvarnom životu.",
+    category: "Digitalni bonton"
   },
   {
     id: 12,
-    question: "Šta u sajber bezbjednosti označava termin 'Zero-Day ranjivost' (Zero-Day Vulnerability)?",
+    question: "Šta je 'Ransomware' (ucjenjivački virus)?",
     options: [
-      "Sigurnosni propust koji se sam popravi u roku od 24 časa",
-      "Sigurnosna mana u softveru za koju programeri još ne znaju niti postoji zvanična zakrpa (patch)",
-      "Kompjuterski virus koji se aktivira samo prvog dana u mjesecu"
+      "Program koji besplatno čisti i ubrzava rad računara",
+      "Zlonamjerni program koji zaključa tvoje fajlove i traži otkup (novac) za otključavanje",
+      "Aplikacija za slušanje muzike bez reklama"
     ],
-    correctIndex: 1,
-    explanation: "Zero-Day znači da proizvođač ima 'nula dana' da reaguje jer je propust već otkriven i potencijalno se koristi za napade prije nego što je zakrpa napravljena. Zato je ključno redovno ažurirati sistem.",
-    category: "Sajber Bezbjednost",
-    difficulty: "Napredno"
+    correctIndex: 1, // B
+    explanation: "Ransomware šifruje fajlove i traži otkup. Najbolja odbrana je redovno čuvanje rezervne kopije (backup) na USB disku ili oblaku.",
+    category: "Zaštita uređaja"
   },
   {
     id: 13,
-    question: "Zašto aplikacija poput 'Kalkulatora' ili jednostavne video igrice nikada ne bi smjela tražiti dozvolu za pristup Mikrofonu, Kontaktima i SMS porukama?",
+    question: "Osoba koju znaš samo preko video igrice traži da se nađete tajno uživo bez znanja roditelja. Šta treba uraditi?",
     options: [
-      "Zato što mikrofon troši previše internet saobraćaja",
-      "To je jasan indikator špijunskog softvera (Spyware) koji prikuplja osjetljive podatke u pozadini",
-      "Operativni sistem to sam traži za svaku aplikaciju bez obzira na njenu namjenu"
+      "Odbiti susret i odmah sve ispričati roditeljima, jer se iza profila može kriti bilo ko",
+      "Otići na susret sam/a i ponijeti novac za druženje",
+      "Poslati joj ključeve i adresu od svog stana"
     ],
-    correctIndex: 1,
-    explanation: "Princip 'najmanjih privilegija': aplikacija treba imati pristup samo onome što joj je neophodno za rad. Prekomjerne dozvole su najčešći način na koji zlonamjerne aplikacije na Androidu prate korisnike.",
-    category: "Zaštita Mobilnih Uređaja",
-    difficulty: "Napredno"
+    correctIndex: 0, // A
+    explanation: "Na internetu se svako može lažno predstaviti kao tvoj vršnjak. Nikada se ne sastaj sa nepoznatim ljudima sa interneta bez znanja i prisustva roditelja!",
+    category: "Lična bezbjednost"
   },
   {
     id: 14,
-    question: "Šta radi 'Etički haker' (tzv. White Hat haker) kada otkrije ozbiljnu sigurnosnu manu na sajtu banke ili društvene mreže?",
+    question: "Ako primijetiš da je neko žrtva nasilja na internetu ili se tebi desi neprijatnost, koji je NAJBOLJI korak?",
     options: [
-      "Odmah javno objavi lozinke korisnika na internet forumu",
-      "Odgovorno prijavljuje propust kompaniji (Responsible Disclosure) kroz Bug Bounty program kako bi se zaštitili korisnici",
-      "Prodaje bazu podataka na Dark Webu za kriptovalute"
+      "Ćutati i sakriti telefon nadajući se da će samo proći",
+      "Svađati se i uzvraćati još težim uvredama",
+      "Napraviti screenshot (dokaz) i odmah potražiti pomoć roditelja, nastavnika ili stručnih službi"
     ],
-    correctIndex: 1,
-    explanation: "Etički hakeri koriste svoje vještine legalno kako bi preduhitrili kriminalce (Black Hat), testirali sisteme i pomogli da internet bude bezbjednije mjesto za sve nas.",
-    category: "Etičko Hakovanje",
-    difficulty: "Napredno"
+    correctIndex: 2, // C
+    explanation: "Uvijek sačuvaj dokaz (screenshot poruke) i odmah se obrati odrasloj osobi od povjerenja. Nisi sam/a i postoji pomoć!",
+    category: "Pomoć i podrška"
   }
 ];

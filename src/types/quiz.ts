@@ -23,7 +23,7 @@ export interface QuizState {
   currentQuestionIndex: number;
   questionStartTime: number; // epoch timestamp ms
   countdownStartTime?: number; // epoch timestamp ms for 3..2..1 start
-  durationSeconds: number; // 15 seconds
+  durationSeconds: number; // 20 seconds
   roomCode: string;
   updatedAt: number;
   players?: Record<string, Player>;

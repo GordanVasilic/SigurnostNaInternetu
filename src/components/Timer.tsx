@@ -12,7 +12,7 @@ interface TimerProps {
 
 export function Timer({
   startTime,
-  durationSeconds = 15,
+  durationSeconds = 20,
   onTimeUp,
   paused = false,
 }: TimerProps) {
@@ -77,8 +77,8 @@ export function Timer({
 
   return (
     <div className="flex flex-col items-center">
-      {/* Circular Timer for Mobile & Desktop */}
-      <div className="relative w-20 h-20 flex items-center justify-center">
+      {/* Circular Timer for Mobile & Desktop (Bigger & clearer font) */}
+      <div className="relative w-22 h-22 sm:w-24 sm:h-24 flex items-center justify-center">
         <svg className="w-full h-full transform -rotate-90" viewBox="0 0 72 72">
           {/* Background circle */}
           <circle
@@ -86,7 +86,7 @@ export function Timer({
             cy="36"
             r={radius}
             className="stroke-slate-800"
-            strokeWidth="6"
+            strokeWidth="5.5"
             fill="transparent"
           />
           {/* Animated progress circle */}
@@ -95,7 +95,7 @@ export function Timer({
             cy="36"
             r={radius}
             className={`${ringBg} transition-all duration-150 ease-linear`}
-            strokeWidth="6"
+            strokeWidth="5.5"
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
             strokeLinecap="round"
@@ -103,15 +103,15 @@ export function Timer({
           />
         </svg>
         <div className="absolute flex flex-col items-center justify-center">
-          <span className={`text-2xl font-black ${textColorClass} tracking-tighter`}>
+          <span className={`text-3xl sm:text-4xl font-black ${textColorClass} tracking-tighter leading-none`}>
             {secondsLeft}
           </span>
-          <span className="text-[10px] font-bold text-slate-400 uppercase -mt-1">sek</span>
+          <span className="text-[11px] font-black text-slate-400 uppercase mt-0.5 tracking-wider">sek</span>
         </div>
       </div>
 
       {/* Linear progress bar underneath */}
-      <div className="w-full max-w-xs h-2 bg-slate-800/80 rounded-full mt-2 overflow-hidden border border-slate-700/50">
+      <div className="w-full max-w-sm h-2.5 bg-slate-800/80 rounded-full mt-2.5 overflow-hidden border border-slate-700/60">
         <div
           className={`h-full bg-gradient-to-r ${colorClass} transition-all duration-150 ease-linear rounded-full`}
           style={{ width: `${progressPercent}%` }}

@@ -237,31 +237,31 @@ export function Leaderboard({ players, isAdmin = false, onResetQuiz }: Leaderboa
               return (
                 <div
                   key={player.id}
-                  className={`flex items-center justify-between p-3 rounded-2xl transition-all ${
+                  className={`flex items-center justify-between p-3.5 sm:p-4 rounded-2xl transition-all ${
                     isFirst
                       ? "bg-amber-500/10 border border-amber-500/30"
                       : "bg-slate-800/50 hover:bg-slate-800 border border-slate-700/40"
                   }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-3.5 min-w-0">
                     {rankBadge}
-                    <div className="w-10 h-10 rounded-xl bg-slate-700/60 flex items-center justify-center text-xl shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-700/60 flex items-center justify-center text-2xl shrink-0">
                       {player.avatar || "👤"}
                     </div>
                     <div className="truncate">
-                      <p className="font-bold text-sm text-white truncate">{player.name}</p>
-                      <p className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
-                        <Clock className="w-3 h-3 text-slate-500" />
+                      <p className="font-bold text-base sm:text-lg text-white truncate">{player.name}</p>
+                      <p className="text-xs text-slate-400 flex items-center gap-1 font-mono">
+                        <Clock className="w-3.5 h-3.5 text-slate-500" />
                         {formatSeconds(player.totalTimeMs)} ukupno
                       </p>
                     </div>
                   </div>
 
-                  <div className="text-right shrink-0">
-                    <div className="text-sm sm:text-base font-black text-cyan-400">
-                      {player.score} <span className="text-xs font-medium text-slate-400">/ 14</span>
+                  <div className="text-right shrink-0 pl-2">
+                    <div className="text-base sm:text-xl font-black text-cyan-400">
+                      {player.score} <span className="text-xs sm:text-sm font-medium text-slate-400">/ 14</span>
                     </div>
-                    <span className="text-[10px] text-slate-500">tačnih odgovora</span>
+                    <span className="text-xs text-slate-400 font-medium">tačnih</span>
                   </div>
                 </div>
               );

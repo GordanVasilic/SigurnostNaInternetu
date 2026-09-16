@@ -147,21 +147,21 @@ export default function StudentHomePage() {
         {!player && quizState.status !== "finished" && (
           <div className="w-full max-w-md mx-auto my-auto py-2 sm:py-6">
             {/* Header / Hero */}
-            <div className="text-center mb-4 sm:mb-6">
-              <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-cyan-950/70 text-cyan-400 border border-cyan-800/50 text-xs font-bold uppercase tracking-wider mb-2 sm:mb-3">
-                <Shield className="w-3.5 h-3.5" />
+            <div className="text-center mb-5 sm:mb-7">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-950/70 text-cyan-400 border border-cyan-800/50 text-xs sm:text-sm font-bold uppercase tracking-wider mb-2.5 sm:mb-3">
+                <Shield className="w-4 h-4" />
                 Sajber Bezbjednost • Edukativni Kviz
               </div>
-              <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white">
+              <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white">
                 Sigurnost na Internetu
               </h1>
-              <p className="text-slate-400 text-xs sm:text-sm mt-1">
+              <p className="text-slate-300 text-sm sm:text-base mt-2 font-medium">
                 Interaktivni izazov znanja • Pripremi se i testiraj svoje vještine!
               </p>
             </div>
 
             {/* Join Form Card */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-7 shadow-2xl backdrop-blur-xl">
+            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl backdrop-blur-xl">
               <form onSubmit={handleJoin} className="flex flex-col gap-5">
                 {/* Avatar Picker */}
                 <AvatarPicker
@@ -171,7 +171,7 @@ export default function StudentHomePage() {
 
                 {/* Name Input */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label className="block text-sm sm:text-base font-bold uppercase tracking-wider text-slate-300 mb-2">
                     Tvoje ime ili nadimak:
                   </label>
                   <input
@@ -181,7 +181,7 @@ export default function StudentHomePage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="npr. Marko, Ana P., Nikola..."
-                    className="w-full px-4 py-3 rounded-2xl bg-slate-800/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent text-base font-semibold"
+                    className="w-full px-5 py-4 rounded-2xl bg-slate-800/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent text-lg sm:text-xl font-bold"
                   />
                 </div>
 
@@ -189,16 +189,16 @@ export default function StudentHomePage() {
                 <button
                   type="submit"
                   disabled={isSubmitting || !name.trim()}
-                  className="w-full mt-2 py-4 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-lg shadow-xl shadow-cyan-500/25 transition-all duration-200 active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full mt-2 py-4 sm:py-5 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-xl sm:text-2xl shadow-xl shadow-cyan-500/25 transition-all duration-200 active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                 >
                   <span>{isSubmitting ? "Prijava u toku..." : "Pridruži se kvizu"}</span>
-                  <ArrowRight className="w-5 h-5 stroke-[2.5]" />
+                  <ArrowRight className="w-6 h-6 stroke-[3]" />
                 </button>
               </form>
 
-              <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-center gap-2 text-xs text-slate-400">
-                <Lock className="w-3.5 h-3.5 text-cyan-400" />
-                <span>14 pitanja • 15 sekundi po pitanju • Sinhronizovano</span>
+              <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-center gap-2 text-sm text-slate-300 font-medium">
+                <Lock className="w-4 h-4 text-cyan-400" />
+                <span>14 pitanja • 20 sekundi po pitanju • Sinhronizovano</span>
               </div>
             </div>
           </div>
@@ -206,63 +206,63 @@ export default function StudentHomePage() {
 
         {/* ================= STATE 2: WAITING IN LOBBY ================= */}
         {player && quizState.status === "lobby" && (
-          <div className="w-full max-w-lg mx-auto text-center py-10 px-4">
+          <div className="w-full max-w-lg mx-auto text-center py-8 px-4">
             <div className="relative inline-block mb-4">
-              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-5xl sm:text-6xl shadow-2xl ring-4 ring-cyan-400/40 animate-pulse">
+              <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-6xl sm:text-7xl shadow-2xl ring-4 ring-cyan-400/40 animate-pulse">
                 {player.avatar}
               </div>
-              <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-slate-950 p-1.5 rounded-full shadow">
-                <Sparkles className="w-4 h-4 stroke-[2.5]" />
+              <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-slate-950 p-2 rounded-full shadow">
+                <Sparkles className="w-5 h-5 stroke-[2.5]" />
               </div>
             </div>
 
-            <h2 className="text-2xl sm:text-3xl font-black text-white">
+            <h2 className="text-3xl sm:text-4xl font-black text-white">
               Dobrodošao/la, <span className="text-cyan-400">{player.name}</span>!
             </h2>
-            <p className="text-slate-400 text-sm mt-2 max-w-sm mx-auto">
+            <p className="text-slate-300 text-base sm:text-lg mt-2 font-medium max-w-sm mx-auto">
               Uspješno si prijavljen/a. Čekamo Sergeja da označi početak kviza sa projektora!
             </p>
 
             {/* Waiting indicator */}
-            <div className="my-5 inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-slate-800/80 border border-slate-700 text-cyan-300 font-semibold text-sm animate-pulse">
-              <Hourglass className="w-4 h-4 animate-spin text-cyan-400" />
+            <div className="my-6 inline-flex items-center gap-3 px-6 py-3.5 rounded-full bg-slate-800/90 border border-slate-700 text-cyan-300 font-bold text-base sm:text-lg animate-pulse shadow-lg">
+              <Hourglass className="w-5 h-5 animate-spin text-cyan-400" />
               <span>Čekamo početak kviza...</span>
             </div>
 
             {/* Change Avatar / Name Button */}
-            <div className="mb-4">
+            <div className="mb-5">
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 border border-slate-700 text-xs font-semibold transition-all active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-cyan-300 border border-slate-700 text-sm font-bold transition-all active:scale-95 shadow-sm"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <LogOut className="w-4 h-4" />
                 <span>Promijeni ime ili avatar</span>
               </button>
             </div>
 
             {/* Classmates connected */}
             <div className="mt-4 p-5 bg-slate-900/80 rounded-3xl border border-slate-800">
-              <div className="flex items-center justify-between mb-3 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                <div className="flex items-center gap-1.5">
+              <div className="flex items-center justify-between mb-3 text-xs sm:text-sm font-bold text-slate-400 uppercase tracking-wider">
+                <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-cyan-400" />
                   <span>Prijavljeni drugari ({Object.keys(quizState.players || {}).length})</span>
                 </div>
                 <span className="text-emerald-400">Spremni za igru</span>
               </div>
 
-              <div className="flex flex-wrap gap-2 justify-center max-h-40 overflow-y-auto p-1">
+              <div className="flex flex-wrap gap-2 justify-center max-h-48 overflow-y-auto p-1">
                 {Object.values(quizState.players || {}).map((p) => (
                   <div
                     key={p.id}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold ${
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold ${
                       p.id === player.id
                         ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
-                        : "bg-slate-800 text-slate-300 border border-slate-700/50"
+                        : "bg-slate-800 text-slate-200 border border-slate-700/60"
                     }`}
                   >
-                    <span>{p.avatar}</span>
-                    <span className="truncate max-w-[90px]">{p.name}</span>
+                    <span className="text-base">{p.avatar}</span>
+                    <span className="truncate max-w-[100px]">{p.name}</span>
                   </div>
                 ))}
               </div>
@@ -279,8 +279,8 @@ export default function StudentHomePage() {
             <div className="w-36 h-36 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-7xl font-black text-white shadow-2xl ring-8 ring-cyan-400/30 animate-bounce">
               {countdownNum ?? 3}
             </div>
-            <h2 className="text-2xl font-bold text-white mt-6">Spremite se! 🚀</h2>
-            <p className="text-slate-400 text-xs mt-1">15 sekundi po pitanju • Srećno svima!</p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mt-6">Spremite se! 🚀</h2>
+            <p className="text-slate-300 text-sm sm:text-base font-medium mt-2">20 sekundi po pitanju • Srećno svima!</p>
           </div>
         )}
 
@@ -292,7 +292,7 @@ export default function StudentHomePage() {
             questionIndex={quizState.currentQuestionIndex}
             totalQuestions={QUIZ_QUESTIONS.length}
             questionStartTime={quizState.questionStartTime}
-            durationSeconds={quizState.durationSeconds || 15}
+            durationSeconds={quizState.durationSeconds || 20}
             hasAnswered={hasAnsweredCurrent}
             selectedOptionIndex={currentAnswer?.selectedIndex}
             isCorrect={currentAnswer?.isCorrect}

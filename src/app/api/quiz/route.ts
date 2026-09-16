@@ -54,7 +54,7 @@ function getOrCreateRoom(roomCode = "sigurnost"): QuizState {
       status: "lobby",
       currentQuestionIndex: 0,
       questionStartTime: 0,
-      durationSeconds: 15,
+      durationSeconds: 20,
       roomCode,
       updatedAt: Date.now(),
       players: {},
@@ -76,10 +76,10 @@ function getOrCreateRoom(roomCode = "sigurnost"): QuizState {
     }
   }
 
-  // 2. Auto-transition from question to next question after 15.5s (Guarantees flow even if user doesn't answer)
+  // 2. Auto-transition from question to next question after 20.5s (Guarantees flow even if user doesn't answer)
   if (state.status === "question" && state.questionStartTime) {
     const elapsed = now - state.questionStartTime;
-    if (elapsed >= 15500) {
+    if (elapsed >= 20500) {
       const nextIdx = state.currentQuestionIndex + 1;
       if (nextIdx < QUIZ_QUESTIONS.length) {
         state.currentQuestionIndex = nextIdx;

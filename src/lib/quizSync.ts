@@ -45,7 +45,7 @@ export function createInitialState(roomCode = DEFAULT_ROOM_CODE): QuizState {
     status: "lobby",
     currentQuestionIndex: 0,
     questionStartTime: 0,
-    durationSeconds: 15,
+    durationSeconds: 20,
     roomCode,
     updatedAt: Date.now(),
     players: {},
