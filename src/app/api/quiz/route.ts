@@ -56,6 +56,7 @@ function getOrCreateRoom(roomCode = "sigurnost"): QuizState {
       questionStartTime: 0,
       durationSeconds: 20,
       roomCode,
+      resetId: 1,
       updatedAt: Date.now(),
       players: {},
     };
@@ -120,6 +121,7 @@ export async function POST(req: NextRequest) {
     switch (action) {
       case "join": {
         const player: Player = data.player;
+        player.resetId = state.resetId || 1;
         if (!state.players) state.players = {};
         state.players[player.id] = player;
         state.updatedAt = now;
@@ -195,6 +197,7 @@ export async function POST(req: NextRequest) {
         state.countdownStartTime = undefined;
         state.players = {}; // Always clear players on reset so everyone re-joins fresh
         state.resetAt = now;
+        state.resetId = (state.resetId || 1) + 1;
         state.updatedAt = now;
         writeRoomsToDisk(rooms);
         break;

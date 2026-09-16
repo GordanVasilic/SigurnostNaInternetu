@@ -13,6 +13,7 @@ export interface Player {
   score: number;
   totalTimeMs: number;
   joinedAt: number;
+  resetId?: number;
   answers?: Record<string, PlayerAnswer>;
 }
 
@@ -27,6 +28,7 @@ export interface QuizState {
   roomCode: string;
   updatedAt: number;
   resetAt?: number;
+  resetId?: number;
   players?: Record<string, Player>;
 }
 

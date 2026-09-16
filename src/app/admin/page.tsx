@@ -149,6 +149,7 @@ export default function AdminPage() {
         countdownStartTime: undefined,
         players: {},
         resetAt: Date.now(),
+        resetId: (prev.resetId || 1) + 1,
       }));
       await resetQuiz(DEFAULT_ROOM_CODE);
     }
@@ -168,6 +169,7 @@ export default function AdminPage() {
         countdownStartTime: undefined,
         players: {},
         resetAt: Date.now(),
+        resetId: (prev.resetId || 1) + 1,
       }));
       await resetQuiz(DEFAULT_ROOM_CODE);
     }

@@ -35,44 +35,57 @@ export default function StudentHomePage() {
     return () => unsubscribe();
   }, []);
 
-  // 2. Restore saved player from localStorage only if valid in active room
+  // 2. Restore saved player from localStorage if it belongs to active session
   useEffect(() => {
     const savedPlayer = localStorage.getItem("sergej_quiz_player");
     if (!savedPlayer) return;
 
     try {
       const parsed: Player = JSON.parse(savedPlayer);
-      if (quizState.players) {
-        const isInPlayers = Boolean(quizState.players[parsed.id]);
-        const wasReset = Boolean(quizState.resetAt && parsed.joinedAt && parsed.joinedAt < quizState.resetAt);
+      const currentResetId = quizState.resetId || 1;
+      const playerResetId = parsed.resetId || 1;
 
-        if (isInPlayers && !wasReset && quizState.status !== "finished") {
-          setPlayer(parsed);
-        } else if (!isInPlayers || wasReset) {
-          localStorage.removeItem("sergej_quiz_player");
-          setPlayer(null);
-        }
-      } else {
-        setPlayer(parsed);
+      // If room was reset (currentResetId > playerResetId), discard stale profile
+      if (currentResetId > playerResetId) {
+        localStorage.removeItem("sergej_quiz_player");
+        setPlayer(null);
+        return;
       }
+
+      // If quiz finished and is now back in lobby, discard old profile so user re-joins
+      const hasFinishedGame = Boolean(parsed.answers && Object.keys(parsed.answers).length > 0);
+      if (quizState.status === "lobby" && hasFinishedGame) {
+        localStorage.removeItem("sergej_quiz_player");
+        setPlayer(null);
+        return;
+      }
+
+      setPlayer(parsed);
     } catch {
       localStorage.removeItem("sergej_quiz_player");
       setPlayer(null);
     }
-  }, [quizState.players, quizState.resetAt, quizState.status]);
+  }, [quizState.resetId, quizState.status]);
 
-  // 3. Auto-logout on reset: When admin resets quiz, return all players to avatar & name selection
+  // 3. Auto-logout on reset: ONLY when admin resets the quiz (resetId changes or quiz finished -> lobby)
   useEffect(() => {
-    if (player) {
-      const isInPlayers = Boolean(quizState.players && quizState.players[player.id]);
-      const wasReset = Boolean(quizState.resetAt && player.joinedAt && player.joinedAt < quizState.resetAt);
+    if (!player) return;
 
-      if (quizState.status === "lobby" && (!isInPlayers || wasReset)) {
-        setPlayer(null);
-        localStorage.removeItem("sergej_quiz_player");
-      }
+    const currentResetId = quizState.resetId || 1;
+    const playerResetId = player.resetId || 1;
+
+    // A) Admin reset the quiz (resetId incremented on server)
+    const isOldSession = currentResetId > playerResetId;
+
+    // B) Player played a finished game and status is back in lobby (admin reset quiz)
+    const hasFinishedGame = Boolean(player.answers && Object.keys(player.answers).length > 0);
+    const isResetFromFinished = quizState.status === "lobby" && hasFinishedGame;
+
+    if (isOldSession || isResetFromFinished) {
+      setPlayer(null);
+      localStorage.removeItem("sergej_quiz_player");
     }
-  }, [quizState.status, quizState.players, quizState.resetAt, player]);
+  }, [quizState.resetId, quizState.status, player]);
 
   // 4. Keep local player score/state updated with server state
   useEffect(() => {
@@ -82,7 +95,7 @@ export default function StudentHomePage() {
     }
   }, [quizState.players, player?.id]);
 
-  // 4. Handle countdown animation
+  // 5. Handle countdown animation
   useEffect(() => {
     if (quizState.status === "countdown" && quizState.countdownStartTime) {
       playStartFanfare();
@@ -106,6 +119,7 @@ export default function StudentHomePage() {
     if (!name.trim()) return;
 
     setIsSubmitting(true);
+    const currentSessionResetId = quizState.resetId || 1;
     const playerId = "p_" + Math.random().toString(36).substring(2, 9);
     const newPlayer: Player = {
       id: playerId,
@@ -114,6 +128,7 @@ export default function StudentHomePage() {
       score: 0,
       totalTimeMs: 0,
       joinedAt: Date.now(),
+      resetId: currentSessionResetId,
       answers: {},
     };
 
