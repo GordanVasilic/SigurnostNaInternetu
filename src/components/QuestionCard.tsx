@@ -66,6 +66,7 @@ export function QuestionCard({
     setTimeExpired(true);
     if (!localAnswered) {
       playWrong();
+      onSelectOption(-1, 15000);
     }
     if (onTimeUp) onTimeUp();
   };
@@ -153,8 +154,9 @@ export function QuestionCard({
             <Clock className="w-5 h-5" />
             <span>Vrijeme je isteklo! ⏳</span>
           </div>
-          <div className="text-xs text-slate-300 mt-1">
-            Uskoro prelazimo na sledeće pitanje...
+          <div className="text-xs text-slate-300 mt-1 flex items-center justify-center gap-1.5">
+            <Hourglass className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+            <span>Prelazimo na sledeće pitanje...</span>
           </div>
         </div>
       )}

@@ -258,6 +258,7 @@ export default function StudentHomePage() {
         {/* ================= STATE 4: LIVE QUESTION ================= */}
         {quizState.status === "question" && (
           <QuestionCard
+            key={quizState.currentQuestionIndex}
             question={QUIZ_QUESTIONS[quizState.currentQuestionIndex]}
             questionIndex={quizState.currentQuestionIndex}
             totalQuestions={QUIZ_QUESTIONS.length}

@@ -56,7 +56,7 @@ export default function StatisticsPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
-      <Navbar />
+      <Navbar showHomeLink={true} />
 
       <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 flex flex-col">
         {/* Header & Back Link */}

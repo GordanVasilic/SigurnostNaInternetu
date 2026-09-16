@@ -5,7 +5,12 @@ import Link from "next/link";
 import { ShieldCheck, Volume2, VolumeX, Settings, Home } from "lucide-react";
 import { toggleSound, isSoundEnabled } from "@/lib/sounds";
 
-export function Navbar({ showAdminLink = true }: { showAdminLink?: boolean }) {
+interface NavbarProps {
+  showAdminLink?: boolean;
+  showHomeLink?: boolean;
+}
+
+export function Navbar({ showAdminLink = false, showHomeLink = false }: NavbarProps) {
   const [soundOn, setSoundOn] = useState(true);
 
   useEffect(() => {
@@ -47,21 +52,23 @@ export function Navbar({ showAdminLink = true }: { showAdminLink?: boolean }) {
             {soundOn ? <Volume2 className="w-5 h-5 text-cyan-400" /> : <VolumeX className="w-5 h-5 text-slate-500" />}
           </button>
 
-          {showAdminLink ? (
-            <Link
-              href="/admin"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white transition-colors border border-slate-700"
-            >
-              <Settings className="w-4 h-4 text-cyan-400" />
-              <span>Admin</span>
-            </Link>
-          ) : (
+          {showHomeLink && (
             <Link
               href="/"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white transition-colors border border-slate-700"
             >
               <Home className="w-4 h-4 text-cyan-400" />
               <span>Početna</span>
+            </Link>
+          )}
+
+          {showAdminLink && (
+            <Link
+              href="/admin"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white transition-colors border border-slate-700"
+            >
+              <Settings className="w-4 h-4 text-cyan-400" />
+              <span>Admin</span>
             </Link>
           )}
         </div>
