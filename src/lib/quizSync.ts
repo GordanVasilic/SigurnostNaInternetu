@@ -23,9 +23,25 @@ function getLocalState(roomCode: string): QuizState {
   return createInitialState(roomCode);
 }
 
+const localSubscribersMap = new Map<string, Set<(state: QuizState) => void>>();
+
+function notifyLocalSubscribers(roomCode: string, state: QuizState) {
+  const subs = localSubscribersMap.get(roomCode);
+  if (subs) {
+    subs.forEach((fn) => {
+      try {
+        fn(state);
+      } catch (err) {
+        console.error("Greška u subscriberu:", err);
+      }
+    });
+  }
+}
+
 function saveLocalState(roomCode: string, state: QuizState) {
   if (typeof window === "undefined") return;
   localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + roomCode, JSON.stringify(state));
+  notifyLocalSubscribers(roomCode, state);
   const ch = getBroadcastChannel(roomCode);
   if (ch) {
     ch.postMessage({ type: "STATE_UPDATE", state });
@@ -82,6 +98,11 @@ export function subscribeToQuizState(
   // Mode B: Built-in Next.js Serverless API Polling (Zero setup required!)
   let active = true;
 
+  if (!localSubscribersMap.has(roomCode)) {
+    localSubscribersMap.set(roomCode, new Set());
+  }
+  localSubscribersMap.get(roomCode)!.add(onUpdate);
+
   const fetchApiState = async () => {
     try {
       const res = await fetch(`/api/quiz?room=${encodeURIComponent(roomCode)}`);
@@ -118,6 +139,7 @@ export function subscribeToQuizState(
 
   return () => {
     active = false;
+    localSubscribersMap.get(roomCode)?.delete(onUpdate);
     clearInterval(pollInterval);
     if (channel) {
       channel.removeEventListener("message", handleMessage);

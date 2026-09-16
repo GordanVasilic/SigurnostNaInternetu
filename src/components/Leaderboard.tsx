@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import Link from "next/link";
 import confetti from "canvas-confetti";
 import { Trophy, Medal, Clock, Award, BarChart3, RotateCcw } from "lucide-react";
 import { Player } from "@/types/quiz";
-import { playVictory } from "@/lib/sounds";
+import { playVictory, stopAllSounds } from "@/lib/sounds";
 
 interface LeaderboardProps {
   players: Record<string, Player>;
@@ -14,6 +14,8 @@ interface LeaderboardProps {
 }
 
 export function Leaderboard({ players, isAdmin = false, onResetQuiz }: LeaderboardProps) {
+  const hasCelebratedRef = useRef(false);
+
   // Sort players: 1. score descending, 2. totalTimeMs ascending (tie-breaker)
   const sortedPlayers = Object.values(players || {}).sort((a, b) => {
     if (b.score !== a.score) {
@@ -28,31 +30,52 @@ export function Leaderboard({ players, isAdmin = false, onResetQuiz }: Leaderboa
   const rest = sortedPlayers.slice(3);
 
   useEffect(() => {
-    playVictory();
+    let animId: number | null = null;
+    let isCancelled = false;
 
-    // Trigger celebratory confetti
-    const duration = 3.5 * 1000;
-    const end = Date.now() + duration;
+    if (!hasCelebratedRef.current) {
+      hasCelebratedRef.current = true;
+      playVictory();
 
-    const frame = () => {
-      confetti({
-        particleCount: 4,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0, y: 0.7 },
-      });
-      confetti({
-        particleCount: 4,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1, y: 0.7 },
-      });
+      // Trigger celebratory confetti for 2.5s
+      const duration = 2500;
+      const end = Date.now() + duration;
 
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
+      const frame = () => {
+        if (isCancelled) return;
+
+        confetti({
+          particleCount: 3,
+          angle: 60,
+          spread: 50,
+          origin: { x: 0, y: 0.7 },
+        });
+        confetti({
+          particleCount: 3,
+          angle: 120,
+          spread: 50,
+          origin: { x: 1, y: 0.7 },
+        });
+
+        if (Date.now() < end) {
+          animId = requestAnimationFrame(frame);
+        }
+      };
+      frame();
+    }
+
+    return () => {
+      isCancelled = true;
+      if (animId !== null) {
+        cancelAnimationFrame(animId);
       }
+      try {
+        confetti.reset();
+      } catch {
+        // ignore
+      }
+      stopAllSounds();
     };
-    frame();
   }, []);
 
   const formatSeconds = (ms?: number) => {

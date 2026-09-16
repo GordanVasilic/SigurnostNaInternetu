@@ -146,8 +146,29 @@ export function playStartFanfare() {
   });
 }
 
+let lastVictoryTime = 0;
+
+export function stopAllSounds() {
+  lastVictoryTime = 0;
+  if (audioCtx) {
+    try {
+      audioCtx.close();
+      audioCtx = null;
+    } catch {
+      // ignore
+    }
+  }
+}
+
 export function playVictory() {
   if (!soundEnabled) return;
+  const now = Date.now();
+  if (now - lastVictoryTime < 5000) {
+    // Prevent duplicate victory sound within 5 seconds
+    return;
+  }
+  lastVictoryTime = now;
+
   const ctx = getAudioContext();
   if (!ctx) return;
 

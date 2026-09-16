@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import confetti from "canvas-confetti";
 import { Navbar } from "@/components/Navbar";
 import { QRCodeDisplay } from "@/components/QRCodeDisplay";
 import { Leaderboard } from "@/components/Leaderboard";
 import { FirebaseBanner } from "@/components/FirebaseBanner";
 import { QUIZ_QUESTIONS } from "@/data/questions";
+import { playStartFanfare, stopAllSounds } from "@/lib/sounds";
 import {
   DEFAULT_ROOM_CODE,
   subscribeToQuizState,
@@ -135,12 +137,35 @@ export default function AdminPage() {
 
   const handleResetQuiz = async () => {
     if (confirm("Da li ste sigurni da želite resetovati kviz i vratiti sve u čekaonicu?")) {
+      try {
+        confetti.reset();
+      } catch {}
+      stopAllSounds();
+      setQuizState((prev) => ({
+        ...prev,
+        status: "lobby",
+        currentQuestionIndex: 0,
+        questionStartTime: 0,
+        countdownStartTime: undefined,
+      }));
       await resetQuiz(DEFAULT_ROOM_CODE, true); // keep connected players
     }
   };
 
   const handleFullReset = async () => {
     if (confirm("Da li želite potpuno obrisati sve prijavljene učenike i početi iznova?")) {
+      try {
+        confetti.reset();
+      } catch {}
+      stopAllSounds();
+      setQuizState((prev) => ({
+        ...prev,
+        status: "lobby",
+        currentQuestionIndex: 0,
+        questionStartTime: 0,
+        countdownStartTime: undefined,
+        players: {},
+      }));
       await resetQuiz(DEFAULT_ROOM_CODE, false); // clear players
     }
   };
