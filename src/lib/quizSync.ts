@@ -52,11 +52,12 @@ export function createInitialState(roomCode = DEFAULT_ROOM_CODE): QuizState {
   };
 }
 
-// 1. Subscribe to Live Quiz State
+// 1. Subscribe to Live Quiz State (Firebase WebSockets OR Built-in Vercel API Polling)
 export function subscribeToQuizState(
   roomCode: string,
   onUpdate: (state: QuizState) => void
 ): () => void {
+  // Mode A: Firebase Realtime Database
   if (isFirebaseConfigured && db) {
     const roomRef = ref(db, `rooms/${roomCode}`);
     const unsubscribe = onValue(roomRef, (snapshot) => {
@@ -78,37 +79,69 @@ export function subscribeToQuizState(
     };
   }
 
-  // Fallback: Local BroadcastChannel + LocalStorage
-  onUpdate(getLocalState(roomCode));
+  // Mode B: Built-in Next.js Serverless API Polling (Zero setup required!)
+  let active = true;
 
-  const channel = getBroadcastChannel(roomCode);
-  const handleMessage = (e: MessageEvent) => {
-    if (e.data && e.data.type === "STATE_UPDATE" && e.data.state) {
-      onUpdate(e.data.state);
+  const fetchApiState = async () => {
+    try {
+      const res = await fetch(`/api/quiz?room=${encodeURIComponent(roomCode)}`);
+      if (res.ok && active) {
+        const data: QuizState = await res.json();
+        saveLocalState(roomCode, data);
+        onUpdate(data);
+      }
+    } catch {
+      // Fallback to local state if offline
+      if (active) {
+        onUpdate(getLocalState(roomCode));
+      }
     }
   };
 
-  const handleStorage = (e: StorageEvent) => {
-    if (e.key === LOCAL_STORAGE_KEY_PREFIX + roomCode && e.newValue) {
-      try {
-        onUpdate(JSON.parse(e.newValue));
-      } catch {
-        // ignore
-      }
+  // Immediate fetch
+  fetchApiState();
+
+  // Poll every 1000ms for smooth live updates across all phones
+  const pollInterval = setInterval(fetchApiState, 1000);
+
+  // Also listen for immediate tab-to-tab broadcast on the same device
+  const channel = getBroadcastChannel(roomCode);
+  const handleMessage = (e: MessageEvent) => {
+    if (e.data && e.data.type === "STATE_UPDATE" && e.data.state && active) {
+      onUpdate(e.data.state);
     }
   };
 
   if (channel) {
     channel.addEventListener("message", handleMessage);
   }
-  window.addEventListener("storage", handleStorage);
 
   return () => {
+    active = false;
+    clearInterval(pollInterval);
     if (channel) {
       channel.removeEventListener("message", handleMessage);
     }
-    window.removeEventListener("storage", handleStorage);
   };
+}
+
+// Helper for sending actions to /api/quiz
+async function sendApiAction(roomCode: string, action: string, data?: unknown): Promise<QuizState | null> {
+  try {
+    const res = await fetch("/api/quiz", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ room: roomCode, action, data }),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      saveLocalState(roomCode, json);
+      return json;
+    }
+  } catch (err) {
+    console.warn("Greška pri slanju na /api/quiz:", err);
+  }
+  return null;
 }
 
 // 2. Player joins
@@ -119,15 +152,8 @@ export async function joinPlayer(roomCode: string, player: Player): Promise<void
     return;
   }
 
-  const state = getLocalState(roomCode);
-  const players = state.players || {};
-  players[player.id] = player;
-  const newState: QuizState = {
-    ...state,
-    players,
-    updatedAt: Date.now(),
-  };
-  saveLocalState(roomCode, newState);
+  // Use Built-in API
+  await sendApiAction(roomCode, "join", { player });
 }
 
 // 3. Admin starts countdown and then question 1
@@ -143,14 +169,8 @@ export async function startQuizCountdown(roomCode: string): Promise<void> {
     return;
   }
 
-  const state = getLocalState(roomCode);
-  const newState: QuizState = {
-    ...state,
-    status: "countdown",
-    countdownStartTime: now,
-    updatedAt: now,
-  };
-  saveLocalState(roomCode, newState);
+  // Use Built-in API
+  await sendApiAction(roomCode, "start_countdown");
 }
 
 // 4. Set active question
@@ -167,15 +187,8 @@ export async function setQuestion(roomCode: string, questionIndex: number): Prom
     return;
   }
 
-  const state = getLocalState(roomCode);
-  const newState: QuizState = {
-    ...state,
-    status: "question",
-    currentQuestionIndex: questionIndex,
-    questionStartTime: now,
-    updatedAt: now,
-  };
-  saveLocalState(roomCode, newState);
+  // Use Built-in API
+  await sendApiAction(roomCode, "set_question", { questionIndex });
 }
 
 // 5. Finish Quiz
@@ -190,59 +203,47 @@ export async function finishQuiz(roomCode: string): Promise<void> {
     return;
   }
 
-  const state = getLocalState(roomCode);
-  const newState: QuizState = {
-    ...state,
-    status: "finished",
-    updatedAt: now,
-  };
-  saveLocalState(roomCode, newState);
+  // Use Built-in API
+  await sendApiAction(roomCode, "finish");
 }
 
 // 6. Reset Quiz to lobby
 export async function resetQuiz(roomCode: string, keepPlayers = false): Promise<void> {
   const now = Date.now();
-  const resetData: Partial<QuizState> = {
-    status: "lobby",
-    currentQuestionIndex: 0,
-    questionStartTime: 0,
-    updatedAt: now,
-  };
-
-  if (!keepPlayers) {
-    resetData.players = {};
-  } else {
-    // Reset players' scores & answers
-    const current = isFirebaseConfigured && db
-      ? (await get(ref(db, `rooms/${roomCode}`))).val()
-      : getLocalState(roomCode);
-    if (current && current.players) {
-      const resetPlayers: Record<string, Player> = {};
-      Object.keys(current.players).forEach((id) => {
-        const p = current.players[id];
-        resetPlayers[id] = {
-          ...p,
-          score: 0,
-          totalTimeMs: 0,
-          answers: {},
-        };
-      });
-      resetData.players = resetPlayers;
-    }
-  }
-
   if (isFirebaseConfigured && db) {
+    const resetData: Partial<QuizState> = {
+      status: "lobby",
+      currentQuestionIndex: 0,
+      questionStartTime: 0,
+      updatedAt: now,
+    };
+
+    if (!keepPlayers) {
+      resetData.players = {};
+    } else {
+      const current = (await get(ref(db, `rooms/${roomCode}`))).val();
+      if (current && current.players) {
+        const resetPlayers: Record<string, Player> = {};
+        Object.keys(current.players).forEach((id) => {
+          const p = current.players[id];
+          resetPlayers[id] = {
+            ...p,
+            score: 0,
+            totalTimeMs: 0,
+            answers: {},
+          };
+        });
+        resetData.players = resetPlayers;
+      }
+    }
+
     const roomRef = ref(db, `rooms/${roomCode}`);
     await update(roomRef, resetData);
     return;
   }
 
-  const state = getLocalState(roomCode);
-  const newState: QuizState = {
-    ...state,
-    ...resetData,
-  };
-  saveLocalState(roomCode, newState);
+  // Use Built-in API
+  await sendApiAction(roomCode, "reset", { keepPlayers });
 }
 
 // 7. Submit Answer by player
@@ -271,8 +272,7 @@ export async function submitAnswer(
     if (snapshot.exists()) {
       const player: Player = snapshot.val();
       const answers = player.answers || {};
-      
-      // Avoid duplicate scoring if already answered this question
+
       if (!answers[questionIndex]) {
         answers[questionIndex] = answer;
         const newScore = player.score + (isCorrect ? 1 : 0);
@@ -287,20 +287,13 @@ export async function submitAnswer(
     return { isCorrect };
   }
 
-  // Local fallback
-  const state = getLocalState(roomCode);
-  const player = state.players?.[playerId];
-  if (player) {
-    const answers = player.answers || {};
-    if (!answers[questionIndex]) {
-      answers[questionIndex] = answer;
-      player.answers = answers;
-      if (isCorrect) player.score += 1;
-      player.totalTimeMs = (player.totalTimeMs || 0) + timeTakenMs;
-      state.players![playerId] = player;
-      saveLocalState(roomCode, state);
-    }
-  }
+  // Use Built-in API
+  await sendApiAction(roomCode, "answer", {
+    playerId,
+    questionIndex,
+    selectedIndex,
+    timeTakenMs,
+  });
 
   return { isCorrect };
 }
@@ -308,7 +301,7 @@ export async function submitAnswer(
 // 8. Calculate aggregate statistics
 export function calculateQuizStats(quizState: QuizState): QuestionStat[] {
   const players = Object.values(quizState.players || {});
-  
+
   return QUIZ_QUESTIONS.map((q, idx) => {
     let correctCount = 0;
     let incorrectCount = 0;
@@ -332,12 +325,10 @@ export function calculateQuizStats(quizState: QuizState): QuestionStat[] {
       }
     });
 
-    const correctPercentage = answeredCount > 0 
-      ? Math.round((correctCount / answeredCount) * 100) 
-      : 0;
-    const averageTimeMs = answeredCount > 0 
-      ? Math.round(totalTime / answeredCount) 
-      : 0;
+    const correctPercentage =
+      answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
+    const averageTimeMs =
+      answeredCount > 0 ? Math.round(totalTime / answeredCount) : 0;
 
     return {
       questionId: q.id,
