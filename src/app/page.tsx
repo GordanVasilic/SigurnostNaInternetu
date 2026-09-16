@@ -15,7 +15,7 @@ import {
   createInitialState,
 } from "@/lib/quizSync";
 import { QuizState, Player } from "@/types/quiz";
-import { Shield, Sparkles, Users, Lock, ArrowRight, Hourglass } from "lucide-react";
+import { Shield, Sparkles, Users, Lock, ArrowRight, Hourglass, LogOut } from "lucide-react";
 import { playStartFanfare } from "@/lib/sounds";
 
 export default function StudentHomePage() {
@@ -117,6 +117,11 @@ export default function StudentHomePage() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("sergej_quiz_player");
+    setPlayer(null);
+  };
+
   // Determine current question player answer status
   const currentAnswer = player?.answers?.[quizState.currentQuestionIndex];
   const hasAnsweredCurrent = Boolean(currentAnswer);
@@ -207,9 +212,21 @@ export default function StudentHomePage() {
             </p>
 
             {/* Waiting indicator */}
-            <div className="my-6 inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-slate-800/80 border border-slate-700 text-cyan-300 font-semibold text-sm animate-pulse">
+            <div className="my-5 inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-slate-800/80 border border-slate-700 text-cyan-300 font-semibold text-sm animate-pulse">
               <Hourglass className="w-4 h-4 animate-spin text-cyan-400" />
               <span>Čekamo početak kviza...</span>
+            </div>
+
+            {/* Change Avatar / Name Button */}
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 border border-slate-700 text-xs font-semibold transition-all active:scale-95"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Promijeni ime ili avatar</span>
+              </button>
             </div>
 
             {/* Classmates connected */}
@@ -273,7 +290,19 @@ export default function StudentHomePage() {
 
         {/* ================= STATE 5: FINISHED / LEADERBOARD ================= */}
         {quizState.status === "finished" && (
-          <Leaderboard players={quizState.players || {}} />
+          <div className="w-full flex flex-col items-center">
+            <Leaderboard players={quizState.players || {}} />
+            <div className="mb-10 text-center">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition-all active:scale-95 shadow-md"
+              >
+                <LogOut className="w-4 h-4 text-cyan-400" />
+                <span>Prijavi se sa novim imenom ili avatarom</span>
+              </button>
+            </div>
+          </div>
         )}
       </main>
     </div>
