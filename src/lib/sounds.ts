@@ -48,6 +48,29 @@ export function playTick(urgent = false) {
   osc.stop(ctx.currentTime + 0.08);
 }
 
+export function playSelect() {
+  if (!soundEnabled) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const start = ctx.currentTime;
+
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(587.33, start); // D5
+  osc.frequency.exponentialRampToValueAtTime(880, start + 0.07); // A5
+
+  gain.gain.setValueAtTime(0.12, start);
+  gain.gain.exponentialRampToValueAtTime(0.001, start + 0.07);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.start(start);
+  osc.stop(start + 0.07);
+}
+
 export function playCorrect() {
   if (!soundEnabled) return;
   const ctx = getAudioContext();

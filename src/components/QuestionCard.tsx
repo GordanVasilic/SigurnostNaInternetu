@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Question } from "@/data/questions";
 import { Timer } from "./Timer";
-import { playCorrect, playWrong } from "@/lib/sounds";
-import { CheckCircle2, XCircle, Clock, Hourglass } from "lucide-react";
+import { playCorrect, playWrong, playSelect } from "@/lib/sounds";
+import { CheckCircle2, XCircle, Clock, Hourglass, Lock } from "lucide-react";
 
 interface QuestionCardProps {
   question: Question;
@@ -35,13 +35,21 @@ export function QuestionCard({
   const [localSelected, setLocalSelected] = useState<number | undefined>(selectedOptionIndex);
   const [localIsCorrect, setLocalIsCorrect] = useState<boolean | undefined>(isCorrect);
   const [timeExpired, setTimeExpired] = useState(false);
+  const hasPlayedResultSoundRef = useRef(false);
 
   useEffect(() => {
     setLocalAnswered(hasAnswered);
     setLocalSelected(selectedOptionIndex);
     setLocalIsCorrect(isCorrect);
-    setTimeExpired(false);
-  }, [questionIndex, hasAnswered, selectedOptionIndex, isCorrect]);
+    hasPlayedResultSoundRef.current = false;
+
+    const elapsed = Date.now() - questionStartTime;
+    if (elapsed >= durationSeconds * 1000) {
+      setTimeExpired(true);
+    } else {
+      setTimeExpired(false);
+    }
+  }, [questionIndex, hasAnswered, selectedOptionIndex, isCorrect, questionStartTime, durationSeconds]);
 
   const handleOptionClick = (idx: number) => {
     if (localAnswered || timeExpired) return;
@@ -53,20 +61,24 @@ export function QuestionCard({
     setLocalSelected(idx);
     setLocalIsCorrect(correct);
 
-    if (correct) {
-      playCorrect();
-    } else {
-      playWrong();
-    }
+    // Play neutral selection chirp: do NOT reveal right or wrong to peers nearby!
+    playSelect();
 
     onSelectOption(idx, timeTakenMs);
   };
 
   const handleTimeUp = () => {
     setTimeExpired(true);
-    if (!localAnswered) {
-      playWrong();
-      onSelectOption(-1, 20000);
+    if (!hasPlayedResultSoundRef.current) {
+      hasPlayedResultSoundRef.current = true;
+      if (!localAnswered) {
+        playWrong();
+        onSelectOption(-1, durationSeconds * 1000);
+      } else if (localIsCorrect) {
+        playCorrect();
+      } else {
+        playWrong();
+      }
     }
     if (onTimeUp) onTimeUp();
   };
@@ -118,45 +130,56 @@ export function QuestionCard({
         </h2>
       </div>
 
-      {/* Immediate Feedback Banner (Extra large, joyful) */}
-      {localAnswered && (
-        <div
-          className={`w-full p-4 sm:p-5 rounded-3xl mb-4 text-center font-bold shadow-xl transition-all animate-in fade-in zoom-in-95 duration-200 ${
-            localIsCorrect
-              ? "bg-emerald-500/25 border-3 border-emerald-500 text-emerald-200"
-              : "bg-rose-500/25 border-3 border-rose-500 text-rose-200"
-          }`}
-        >
-          <div className="flex items-center justify-center gap-2.5 text-2xl sm:text-3xl font-black">
-            {localIsCorrect ? (
-              <>
-                <CheckCircle2 className="w-8 h-8 text-emerald-400 shrink-0" />
-                <span>Tačno! 🎉 (+1 bod)</span>
-              </>
-            ) : (
-              <>
-                <XCircle className="w-8 h-8 text-rose-400 shrink-0" />
-                <span>Netačno! ❌</span>
-              </>
-            )}
+      {/* 1. Neutral Locked Banner (While timer is ticking down, answer is locked and concealed from classmates) */}
+      {localAnswered && !timeExpired && (
+        <div className="w-full p-4 sm:p-5 rounded-3xl mb-4 text-center font-bold bg-slate-900/95 border-2 border-cyan-500/50 text-cyan-200 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex items-center justify-center gap-2.5 text-xl sm:text-2xl font-black text-white">
+            <Lock className="w-7 h-7 text-cyan-400 shrink-0" />
+            <span>Odgovor je zabilježen! 🔒</span>
           </div>
-          <div className="text-sm sm:text-base text-slate-200 mt-2 flex items-center justify-center gap-2 font-medium">
+          <div className="text-sm sm:text-base text-slate-300 mt-2 flex items-center justify-center gap-2 font-medium">
             <Hourglass className="w-4 h-4 animate-spin text-cyan-400" />
-            <span>Čekamo istek vremena za sledeće pitanje...</span>
+            <span>Rezultat se otkriva kada istekne vrijeme... ⏳</span>
           </div>
         </div>
       )}
 
-      {/* Time Expired Notice */}
-      {!localAnswered && timeExpired && (
+      {/* 2. Revealed Correct Banner (Only after time expired) */}
+      {timeExpired && localAnswered && localIsCorrect && (
+        <div className="w-full p-4 sm:p-5 rounded-3xl mb-4 text-center font-bold bg-emerald-500/25 border-3 border-emerald-500 text-emerald-200 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex items-center justify-center gap-2.5 text-2xl sm:text-3xl font-black">
+            <CheckCircle2 className="w-8 h-8 text-emerald-400 shrink-0" />
+            <span>Tačno! 🎉 (+1 bod)</span>
+          </div>
+          <div className="text-sm sm:text-base text-slate-200 mt-2 flex items-center justify-center gap-2 font-medium">
+            <Hourglass className="w-4 h-4 animate-spin text-cyan-400" />
+            <span>Odlično! Prelazimo na sledeće pitanje...</span>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Revealed Incorrect Banner (Only after time expired) */}
+      {timeExpired && localAnswered && !localIsCorrect && (
+        <div className="w-full p-4 sm:p-5 rounded-3xl mb-4 text-center font-bold bg-rose-500/25 border-3 border-rose-500 text-rose-200 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex items-center justify-center gap-2.5 text-2xl sm:text-3xl font-black">
+            <XCircle className="w-8 h-8 text-rose-400 shrink-0" />
+            <span>Netačno! ❌ (0 bodova)</span>
+          </div>
+          <div className="text-sm sm:text-base text-slate-200 mt-2 font-medium">
+            Tačan odgovor je: <strong className="text-emerald-400 font-bold">{question.options[question.correctIndex]}</strong>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Time Expired without answering Notice */}
+      {timeExpired && !localAnswered && (
         <div className="w-full p-4 sm:p-5 rounded-3xl mb-4 text-center font-bold bg-amber-500/25 border-3 border-amber-500 text-amber-200 animate-in fade-in shadow-xl">
           <div className="flex items-center justify-center gap-2 text-2xl sm:text-3xl font-black">
             <Clock className="w-8 h-8 text-amber-400" />
             <span>Vrijeme je isteklo! ⏳</span>
           </div>
-          <div className="text-sm sm:text-base text-slate-200 mt-2 flex items-center justify-center gap-2 font-medium">
-            <Hourglass className="w-4 h-4 animate-spin text-cyan-400" />
-            <span>Prelazimo na sledeće pitanje...</span>
+          <div className="text-sm sm:text-base text-slate-200 mt-2 font-medium">
+            Tačan odgovor je bio: <strong className="text-emerald-400 font-bold">{question.options[question.correctIndex]}</strong>
           </div>
         </div>
       )}
@@ -167,15 +190,40 @@ export function QuestionCard({
           const letter = optionLetters[idx];
           const color = optionColors[idx];
           const isSelected = localSelected === idx;
+          const isCorrectOption = idx === question.correctIndex;
 
           let buttonStyle = `${color.bg} text-white ${color.border} shadow-xl`;
-          if (localAnswered || timeExpired) {
-            if (isSelected) {
-              buttonStyle = localIsCorrect
-                ? "bg-emerald-600 text-white border-3 border-emerald-300 shadow-emerald-500/40 scale-[1.02]"
-                : "bg-rose-600 text-white border-3 border-rose-300 shadow-rose-500/40 scale-[1.02]";
+          let badgeText: string | null = null;
+          let badgeIcon: React.ReactNode = null;
+
+          if (!timeExpired) {
+            // DURING 20s ANSWERING WINDOW
+            if (localAnswered) {
+              if (isSelected) {
+                buttonStyle =
+                  "bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-3 border-cyan-400 shadow-xl shadow-cyan-500/30 scale-[1.02] ring-2 ring-cyan-400";
+                badgeText = "Tvoj izbor";
+                badgeIcon = <Lock className="w-3.5 h-3.5" />;
+              } else {
+                buttonStyle =
+                  "bg-slate-800/40 text-slate-400 border border-slate-700/30 opacity-40 cursor-not-allowed";
+              }
+            }
+          } else {
+            // AFTER TIME EXPIRED: REVEAL WINNER
+            if (isCorrectOption) {
+              buttonStyle =
+                "bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-3 border-emerald-300 shadow-xl shadow-emerald-500/40 scale-[1.02] ring-2 ring-emerald-400";
+              badgeText = isSelected ? "Tačno! Tvoj izbor ✓" : "Tačan odgovor ✓";
+              badgeIcon = <CheckCircle2 className="w-4 h-4 text-emerald-300" />;
+            } else if (isSelected && !localIsCorrect) {
+              buttonStyle =
+                "bg-gradient-to-r from-rose-600 to-red-600 text-white border-3 border-rose-300 shadow-xl shadow-rose-500/40 scale-[1.02]";
+              badgeText = "Tvoj izbor ✗";
+              badgeIcon = <XCircle className="w-4 h-4 text-rose-300" />;
             } else {
-              buttonStyle = "bg-slate-800/60 text-slate-400 border border-slate-700/40 opacity-40 cursor-not-allowed";
+              buttonStyle =
+                "bg-slate-800/30 text-slate-500 border border-slate-800/50 opacity-30 cursor-not-allowed";
             }
           }
 
@@ -189,15 +237,18 @@ export function QuestionCard({
             >
               <div
                 className={`w-11 h-11 sm:w-13 sm:h-13 rounded-2xl flex items-center justify-center text-lg sm:text-xl font-black shrink-0 shadow-md ${
-                  isSelected ? "bg-white/25 text-white" : color.badge
+                  isSelected || (timeExpired && isCorrectOption)
+                    ? "bg-white/25 text-white"
+                    : color.badge
                 }`}
               >
                 {letter}
               </div>
               <span className="flex-1 leading-snug">{opt}</span>
-              {isSelected && (
-                <div className="shrink-0 text-xs sm:text-sm font-black px-2.5 py-1 rounded-lg bg-white/25">
-                  Tvoj izbor
+              {badgeText && (
+                <div className="shrink-0 text-xs sm:text-sm font-black px-3 py-1.5 rounded-xl bg-slate-950/60 border border-white/20 text-white flex items-center gap-1.5 shadow">
+                  {badgeIcon}
+                  <span>{badgeText}</span>
                 </div>
               )}
             </button>

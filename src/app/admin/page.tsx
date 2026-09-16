@@ -38,6 +38,7 @@ export default function AdminPage() {
   const [pinError, setPinError] = useState(false);
   const [quizState, setQuizState] = useState<QuizState>(createInitialState());
   const [autoAdvance, setAutoAdvance] = useState(true);
+  const [adminElapsedMs, setAdminElapsedMs] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check saved admin session
@@ -56,6 +57,18 @@ export default function AdminPage() {
     return () => unsubscribe();
   }, []);
 
+  // Live timer tracker for admin projector view
+  useEffect(() => {
+    if (quizState.status !== "question" || !quizState.questionStartTime) {
+      setAdminElapsedMs(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setAdminElapsedMs(Date.now() - (quizState.questionStartTime || Date.now()));
+    }, 200);
+    return () => clearInterval(interval);
+  }, [quizState.status, quizState.questionStartTime]);
+
   // Master Quiz Coordinator (Runs on Admin browser which is projected on screen)
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -68,10 +81,10 @@ export default function AdminPage() {
       return () => clearTimeout(timer);
     }
 
-    // 2. If status is question and autoAdvance is enabled, advance after 20s
+    // 2. If status is question and autoAdvance is enabled, advance after 24.5s (20s answering + 4.5s reveal)
     if (quizState.status === "question" && autoAdvance) {
       const elapsed = Date.now() - (quizState.questionStartTime || Date.now());
-      const remainingMs = Math.max(0, 20500 - elapsed); // 20.5s buffer
+      const remainingMs = Math.max(0, 24500 - elapsed); // 24.5s total buffer
 
       if (timerRef.current) clearTimeout(timerRef.current);
 
@@ -344,13 +357,32 @@ export default function AdminPage() {
                   </span>
                 </div>
 
-                {/* Answers Counter */}
-                <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-sm font-bold text-white">
-                  <CheckCircle className="w-4 h-4 text-emerald-400" />
-                  <span>
-                    Odgovorilo:{" "}
-                    <strong className="text-cyan-400 font-black">{answeredCount}</strong> / {totalPlayers}
-                  </span>
+                {/* Timer & Answers Counter */}
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`flex items-center gap-2 px-4 py-1.5 rounded-full border text-sm font-bold ${
+                      adminElapsedMs >= 20000
+                        ? "bg-emerald-950/60 border-emerald-500/40 text-emerald-300"
+                        : Math.max(0, Math.ceil((20000 - adminElapsedMs) / 1000)) <= 5
+                        ? "bg-rose-950/60 border-rose-500/40 text-rose-300 animate-pulse"
+                        : "bg-slate-800 border-slate-700 text-cyan-300"
+                    }`}
+                  >
+                    <Clock className="w-4 h-4" />
+                    <span>
+                      {adminElapsedMs >= 20000
+                        ? "Tačan odgovor otkriven ✓"
+                        : `Vrijeme: ${Math.max(0, Math.ceil((20000 - adminElapsedMs) / 1000))}s`}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-sm font-bold text-white">
+                    <CheckCircle className="w-4 h-4 text-emerald-400" />
+                    <span>
+                      Odgovorilo:{" "}
+                      <strong className="text-cyan-400 font-black">{answeredCount}</strong> / {totalPlayers}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -359,22 +391,42 @@ export default function AdminPage() {
                 {currentQ.question}
               </h1>
 
-              {/* 3 Options display on Projector */}
+              {/* 3 Options display on Projector (Neutral while answering, revealed after 20s) */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
                 {currentQ.options.map((opt, i) => {
                   const letters = ["A", "B", "C"];
                   const isCorrectAnswer = i === currentQ.correctIndex;
+                  const isRevealed = adminElapsedMs >= 20000;
                   return (
                     <div
                       key={i}
-                      className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/60 flex items-start gap-3"
+                      className={`p-4 rounded-2xl flex items-start gap-3 transition-all duration-300 ${
+                        isRevealed && isCorrectAnswer
+                          ? "bg-emerald-600/30 border-2 border-emerald-400 shadow-xl shadow-emerald-500/20 ring-2 ring-emerald-400 scale-[1.02]"
+                          : isRevealed
+                          ? "bg-slate-800/40 border border-slate-700/30 opacity-50"
+                          : "bg-slate-800/80 border border-slate-700/60"
+                      }`}
                     >
-                      <div className="w-8 h-8 rounded-xl bg-slate-700 flex items-center justify-center font-black text-sm text-cyan-400 shrink-0">
+                      <div
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${
+                          isRevealed && isCorrectAnswer
+                            ? "bg-emerald-500 text-slate-950"
+                            : "bg-slate-700 text-cyan-400"
+                        }`}
+                      >
                         {letters[i]}
                       </div>
-                      <span className="text-sm font-semibold text-slate-200 leading-snug">
-                        {opt}
-                      </span>
+                      <div className="flex-1">
+                        <span className="text-sm font-semibold text-slate-200 leading-snug">
+                          {opt}
+                        </span>
+                        {isRevealed && isCorrectAnswer && (
+                          <span className="block mt-1 text-xs font-black text-emerald-400">
+                            ✓ Tačan odgovor
+                          </span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -386,9 +438,11 @@ export default function AdminPage() {
               <div className="flex items-center gap-3">
                 <Clock className="w-5 h-5 text-cyan-400" />
                 <div>
-                  <span className="text-sm font-bold text-white">Automatski tajmer: 20 sekundi</span>
+                  <span className="text-sm font-bold text-white">
+                    Automatski tajmer: 20s odgovaranje + 4s prikaz rezultata
+                  </span>
                   <p className="text-xs text-slate-400">
-                    Pitanja automatski prelaze na sledeće čim istekne 20s.
+                    Kviz automatski prelazi na sledeće pitanje nakon što se prikaže tačan odgovor.
                   </p>
                 </div>
               </div>

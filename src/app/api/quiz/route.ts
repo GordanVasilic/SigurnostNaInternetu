@@ -76,10 +76,10 @@ function getOrCreateRoom(roomCode = "sigurnost"): QuizState {
     }
   }
 
-  // 2. Auto-transition from question to next question after 20.5s (Guarantees flow even if user doesn't answer)
+  // 2. Auto-transition from question to next question after 24.5s (20s answering + 4.5s reveal)
   if (state.status === "question" && state.questionStartTime) {
     const elapsed = now - state.questionStartTime;
-    if (elapsed >= 20500) {
+    if (elapsed >= 24500) {
       const nextIdx = state.currentQuestionIndex + 1;
       if (nextIdx < QUIZ_QUESTIONS.length) {
         state.currentQuestionIndex = nextIdx;
