@@ -156,6 +156,18 @@ export async function joinPlayer(roomCode: string, player: Player): Promise<void
   await sendApiAction(roomCode, "join", { player });
 }
 
+// 2b. Player leaves / changes profile
+export async function leavePlayer(roomCode: string, playerId: string): Promise<void> {
+  if (isFirebaseConfigured && db) {
+    const playerRef = ref(db, `rooms/${roomCode}/players/${playerId}`);
+    await set(playerRef, null);
+    return;
+  }
+
+  // Use Built-in API
+  await sendApiAction(roomCode, "leave", { playerId });
+}
+
 // 3. Admin starts countdown and then question 1
 export async function startQuizCountdown(roomCode: string): Promise<void> {
   const now = Date.now();

@@ -127,6 +127,16 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case "leave": {
+        const playerId = data?.playerId;
+        if (playerId && state.players && state.players[playerId]) {
+          delete state.players[playerId];
+          state.updatedAt = now;
+          writeRoomsToDisk(rooms);
+        }
+        break;
+      }
+
       case "start_countdown": {
         state.status = "countdown";
         state.countdownStartTime = now;

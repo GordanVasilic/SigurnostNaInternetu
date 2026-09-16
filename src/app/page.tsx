@@ -11,6 +11,7 @@ import {
   DEFAULT_ROOM_CODE,
   subscribeToQuizState,
   joinPlayer,
+  leavePlayer,
   submitAnswer,
   createInitialState,
 } from "@/lib/quizSync";
@@ -117,9 +118,20 @@ export default function StudentHomePage() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("sergej_quiz_player");
-    setPlayer(null);
+  const handleLogout = async () => {
+    if (player) {
+      const oldId = player.id;
+      setPlayer(null);
+      localStorage.removeItem("sergej_quiz_player");
+      try {
+        await leavePlayer(DEFAULT_ROOM_CODE, oldId);
+      } catch (err) {
+        console.warn("Greška pri odjavi starog profila:", err);
+      }
+    } else {
+      localStorage.removeItem("sergej_quiz_player");
+      setPlayer(null);
+    }
   };
 
   // Determine current question player answer status
