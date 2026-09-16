@@ -1,7 +1,7 @@
 {
   "name": "sigurnost-na-internetu-kviz",
   "version": "1.0.0",
-  "description": "Interaktivni online kviz o sigurnosti na internetu za Sergeja (OŠ P.P. Njegoš Banja Luka)",
+  "description": "Interaktivni online kviz o sigurnosti na internetu za Sergeja",
   "private": true,
   "scripts": {
     "dev": "next dev",

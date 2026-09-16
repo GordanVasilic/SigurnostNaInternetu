@@ -37,7 +37,7 @@ export function Navbar({ showAdminLink = false, showHomeLink = false }: NavbarPr
               SIGURNOST
             </span>{" "}
             <span className="text-slate-300 font-medium text-sm hidden sm:inline">
-              | Kviz za 9. razred
+              | Edukativni Kviz
             </span>
           </div>
         </Link>

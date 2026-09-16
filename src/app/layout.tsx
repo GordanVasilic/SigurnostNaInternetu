@@ -20,8 +20,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Sigurnost na Internetu | Kviz za 9. razred",
-  description: "Interaktivni kviz o sajber bezbjednosti za učenike 9. razreda OŠ Petar Petrović Njegoš Banja Luka.",
+  title: "Sigurnost na Internetu | Interaktivni Kviz",
+  description: "Interaktivni online kviz o sajber bezbjednosti i sigurnosti na internetu.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

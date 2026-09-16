@@ -74,7 +74,7 @@ export default function StatisticsPage() {
               <span>Detaljna Statistika Kvizа</span>
             </h1>
             <p className="text-slate-400 text-sm mt-1">
-              Analiza znanja razreda o sigurnosti na internetu (14 pitanja).
+              Analiza znanja i odgovora učesnika o sigurnosti na internetu (14 pitanja).
             </p>
           </div>
 
@@ -93,7 +93,7 @@ export default function StatisticsPage() {
           {/* Card 1: Total Players */}
           <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between shadow-lg">
             <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider">
-              <span>Broj učenika</span>
+              <span>Broj učesnika</span>
               <Users className="w-4 h-4 text-cyan-400" />
             </div>
             <div className="text-2xl sm:text-3xl font-black text-white mt-2">
@@ -105,7 +105,7 @@ export default function StatisticsPage() {
           {/* Card 2: Overall Accuracy */}
           <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between shadow-lg">
             <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider">
-              <span>Uspješnost razreda</span>
+              <span>Ukupna uspješnost</span>
               <Award className="w-4 h-4 text-emerald-400" />
             </div>
             <div className="text-2xl sm:text-3xl font-black text-emerald-400 mt-2">
@@ -263,7 +263,7 @@ export default function StatisticsPage() {
                 <div className="mt-3 p-3.5 rounded-2xl bg-cyan-950/30 border border-cyan-800/40 flex items-start gap-2.5 text-xs text-cyan-200">
                   <Lightbulb className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-cyan-300 font-bold">Edukativna poruka za razred: </strong>
+                    <strong className="text-cyan-300 font-bold">Edukativno objašnjenje: </strong>
                     <span>{q.explanation}</span>
                   </div>
                 </div>

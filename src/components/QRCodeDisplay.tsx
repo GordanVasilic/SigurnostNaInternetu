@@ -98,8 +98,8 @@ export function QRCodeDisplay({ url, size = 260 }: QRCodeDisplayProps) {
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         await navigator.share({
-          title: "Kviz: Sigurnost na Internetu (9. razred)",
-          text: "Drugari, priključite se kvizu o sigurnosti na internetu!",
+          title: "Kviz: Sigurnost na Internetu",
+          text: "Priključite se kvizu o sigurnosti na internetu i testirajte znanje!",
           url: targetUrl,
         });
       } catch {
@@ -233,7 +233,7 @@ export function QRCodeDisplay({ url, size = 260 }: QRCodeDisplayProps) {
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/80 text-cyan-400 border border-cyan-800/60 text-xs font-bold uppercase tracking-wider mb-1">
                 <QrIcon className="w-4 h-4" />
-                <span>OŠ Petar Petrović Njegoš Banja Luka</span>
+                <span>Sigurnost na Internetu • Sajber Izazov</span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-black text-white">
                 Skeniraj i priključi se kvizu! 📱

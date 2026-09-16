@@ -97,8 +97,23 @@ export function QuestionCard({
         <div className="px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
           Pitanje <span className="text-cyan-400 font-bold">{questionIndex + 1}</span> od {totalQuestions}
         </div>
-        <div className="px-3 py-1 rounded-full bg-cyan-950/50 border border-cyan-800/40 text-cyan-300 font-medium">
-          {question.category}
+        <div className="flex items-center gap-1.5">
+          {question.difficulty && (
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                question.difficulty === "Osnovno"
+                  ? "bg-emerald-950/70 text-emerald-400 border border-emerald-800/50"
+                  : question.difficulty === "Srednje"
+                  ? "bg-amber-950/70 text-amber-400 border border-amber-800/50"
+                  : "bg-rose-950/70 text-rose-400 border border-rose-800/50"
+              }`}
+            >
+              {question.difficulty}
+            </span>
+          )}
+          <div className="px-2.5 py-0.5 rounded-full bg-cyan-950/50 border border-cyan-800/40 text-cyan-300 text-[11px] font-medium hidden sm:inline">
+            {question.category}
+          </div>
         </div>
       </div>
 

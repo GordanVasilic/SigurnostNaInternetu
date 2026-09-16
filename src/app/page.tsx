@@ -136,15 +136,15 @@ export default function StudentHomePage() {
           <div className="w-full max-w-md mx-auto my-auto py-2 sm:py-6">
             {/* Header / Hero */}
             <div className="text-center mb-4 sm:mb-6">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/70 text-cyan-400 border border-cyan-800/50 text-xs font-bold uppercase tracking-wider mb-2 sm:mb-3">
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-cyan-950/70 text-cyan-400 border border-cyan-800/50 text-xs font-bold uppercase tracking-wider mb-2 sm:mb-3">
                 <Shield className="w-3.5 h-3.5" />
-                OŠ Petar Petrović Njegoš • Banja Luka
+                Sajber Bezbjednost • Edukativni Kviz
               </div>
               <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white">
                 Sigurnost na Internetu
               </h1>
               <p className="text-slate-400 text-xs sm:text-sm mt-1">
-                Školski kviz za 9. razred • Pripremi se i pokaži znanje!
+                Interaktivni izazov znanja • Pripremi se i testiraj svoje vještine!
               </p>
             </div>
 

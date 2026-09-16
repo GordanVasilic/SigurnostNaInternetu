@@ -42,7 +42,7 @@ export function FirebaseBanner() {
             <span>Da li vam je potreban Firebase?</span>
           </div>
           <p>
-            <strong>NE, nije obavezan!</strong> Aplikacija sada ima sopstveni ugrađeni backend (<code>/api/quiz</code>) koji automatski sinhronizuje sve telefone u razredu svakih 1000ms. Čim postavite projekat na Vercel, sve radi odmah "iz kutije" sa 0 podešavanja.
+            <strong>NE, nije obavezan!</strong> Aplikacija sada ima sopstveni ugrađeni backend (<code>/api/quiz</code>) koji automatski sinhronizuje sve telefone učesnika svakih 1000ms. Čim postavite projekat na Vercel, sve radi odmah "iz kutije" sa 0 podešavanja.
           </p>
           <p className="text-slate-400">
             Ako ikada poželite preći na WebSocket vezu ispod 50ms, možete opciono povezati besplatnu bazu na{" "}

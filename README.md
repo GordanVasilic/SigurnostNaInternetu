@@ -1,41 +1,44 @@
-# 🛡️ Kviz: Sigurnost na Internetu (OŠ "Petar Petrović Njegoš" Banja Luka)
+# 🛡️ Kviz: Sigurnost na Internetu
 
-Interaktivna veb aplikacija u stilu Kahoota kreirana za **Sergeja** (učenika 9. razreda) za školsku prezentaciju i testiranje drugara iz razreda na temu **Sigurnost na internetu**.
+Interaktivna veb aplikacija u stilu Kahoota kreirana za **Sergeja** za edukativnu prezentaciju i testiranje znanja na temu **Sigurnost na internetu i sajber bezbjednost**.
+
+Aplikacija sadrži **14 progresivnih pitanja** (od osnova do naprednih srednjoškolskih tema iz sajber bezbjednosti), tajmer od 15 sekundi po pitanju, rang listu sa bodovima i vremenom, te detaljnu analitiku.
 
 ---
 
 ## 🌟 Ključne Karakteristike
 
-1. **QR Kod za Drugare**:
-   - Sergej na projektoru/tabli prikazuje administratorski ekran sa velikim QR kodom.
-   - Drugari jednostavno usmjere kameru telefona, skeniraju QR kod i odmah ulaze u kviz.
-2. **Izbor Avatara i Imena**:
-   - Svaki učenik bira zabavan avatar (🦊 Lisica, 🚀 Raketa, 🦁 Lav, 🤖 Robot, 🎮 Gejmer, 🛡️ Štit itd.) i unosi svoje ime.
-   - Nakon prijave čekaju u čekaonici ("Lobby") dok Sergej ne označi početak.
-3. **Sinhronizovano Igranje za Cijeli Razred**:
+1. **QR Kod za Učesnike**:
+   - Sergej na projektoru/ekranu prikazuje administratorski ekran sa velikim QR kodom.
+   - Učesnici jednostavno usmjere kameru telefona, skeniraju QR kod i odmah ulaze u kviz.
+   - Administrator može uvećati QR kod preko cijelog ekrana, preuzeti ga kao sliku (PNG) ili podijeliti link direktno u Viber/WhatsApp grupu.
+2. **Izbor Avatara (40 unikatnih likova) i Imena**:
+   - Svaki igrač bira avatar (Sajber & IT, Životinje, Heroji) i unosi svoje ime.
+   - U čekaonici u svakom trenutku mogu promijeniti avatar ili popraviti ime.
+3. **Sinhronizovano Igranje za Sve Učesnike**:
    - Sergej jednim klikom na dugme **"POKRENI KVIZ ZA SVE UČENIKE"** pokreće kviz.
-   - Svim učenicima se u isto vrijeme prikazuje isto pitanje.
+   - Svima se u isto vrijeme prikazuje isto pitanje.
 4. **Tajmer od 15 Sekundi po Pitanju**:
    - Kružni tajmer sa zvučnim efektima odbrojava 15 sekundi.
-   - Ako učenik odgovori ranije, odmah dobija vizuelnu potvrdu (**Tačno! 🎉** ili **Netačno! ❌**, bez otkrivanja tačnog odgovora ako je pogriješio).
-   - Čeka se istek punih 15 sekundi kako bi svi učenici u istoj sekundi prešli na sledeće pitanje.
+   - Ako igrač odgovori ranije, odmah dobija vizuelnu potvrdu (**Tačno! 🎉** ili **Netačno! ❌**, bez otkrivanja tačnog odgovora).
+   - Čeka se istek punih 15 sekundi kako bi svi učesnici u istoj sekundi automatski prešli na sledeće pitanje.
+   - Ako neko ne odgovori u roku od 15s, automatski se bilježi 0 bodova i prelazi se na sledeće pitanje.
 5. **Rang Lista (Leaderboard) sa Mjerenjem Vremena**:
-   - 14 pripremljenih edukativnih pitanja.
    - Pobjedničko postolje (Zlato 🥇, Srebro 🥈, Bronza 🥉) uz slavljeničke konfete i zvučne efekte.
-   - **Pravilo izjednačenja**: Ako dva učenika imaju isti broj tačnih bodova, bolje je rangiran onaj koji je brže odgovarao (mjeri se ukupno vrijeme u sekundama).
+   - **Pravilo izjednačenja**: Ako dva takmičara imaju isti broj tačnih bodova, bolje je rangiran onaj koji je brže odgovarao (mjeri se ukupno vrijeme u sekundama).
 6. **Detaljna Statistika za Prezentaciju (`/stats`)**:
    - Prikaz procenata tačnosti za svako od 14 pitanja.
-   - Analiza najlakših i najtežih pitanja u razredu.
-   - Edukativna objašnjenja koja Sergej može pročitati naglas razredu i nastavniku.
+   - Analiza najlakših i najtežih tema.
+   - Edukativna objašnjenja koja Sergej može pročitati naglas nakon kviza.
+7. **Ugrađeni Backend (Bez potrebe za eksternim bazama)**:
+   - Kviz ima ugrađeni serverless backend (`/api/quiz`), tako da radi na Vercelu bez ikakvih baza podataka ili podešavanja!
 
 ---
 
 ## 🚀 Brzo Pokretanje Lokalno (na računaru)
 
-Ako želite odmah isprobati kviz na svom računaru:
-
 ```bash
-# 1. Instalacija paketa (već je odrađena u projektu)
+# 1. Instalacija paketa
 npm install
 
 # 2. Pokretanje razvojnog servera
@@ -45,79 +48,35 @@ npm run dev
 Otvorite u pregledaču:
 * **Učenički ekran (Igrač)**: `http://localhost:3000`
 * **Sergej / Admin kontrola**: `http://localhost:3000/admin`
-  * Podrazumijevani PIN kod je: `sergej2024` (ili `2024` / `sergej`)
-
-> **Savjet za testiranje na računaru**: Otvorite dva prozora pregledača jedan pored drugog. U jednom uđite na `http://localhost:3000` kao učenik (npr. izaberite lisicu i unesite "Marko"), a u drugom otvorite `http://localhost:3000/admin` i kliknite "Pokreni kviz". Vidjećete kako se u istoj sekundi sve sinhronizuje!
-
----
-
-## 🌐 Postavljanje na GitHub i Vercel (Besplatno za 3 minuta)
-
-### Korak 1: Postavljanje na GitHub
-1. Otvorite [github.com](https://github.com) i napravite novi repozitorijum (npr. `sergej-sigurnost-kviz`).
-2. U terminalu u ovom folderu pokrenite:
-   ```bash
-   git add .
-   git commit -m "Inicijalna verzija kviza Sigurnost na internetu"
-   git branch -M main
-   git remote add origin https://github.com/VASE_KORISNICKO_IME/sergej-sigurnost-kviz.git
-   git push -u origin main
-   ```
-
-### Korak 2: Postavljanje na Vercel
-1. Otvorite [vercel.com](https://vercel.com) i prijavite se sa svojim GitHub nalogom.
-2. Kliknite **"Add New..."** → **"Project"**.
-3. Izaberite vaš repozitorijum `sergej-sigurnost-kviz` i kliknite **"Deploy"**.
-4. Za 60 sekundi dobićete gotov link (npr. `https://sergej-sigurnost-kviz.vercel.app`)!
+  * Podrazumijevani PIN kod je: `sergej2024` (ili `2024`)
+* **Detaljna statistika**: `http://localhost:3000/stats`
 
 ---
 
-## ⚡ Povezivanje Google Firebase baze (za rad sa više telefona u razredu)
+## 📚 Spisak 14 Progresivnih Pitanja (od lakših ka težim)
 
-Aplikacija ima ugrađenu podršku za **Google Firebase Realtime Database**, koja je 100% besplatna i omogućava da 30+ telefona u učionici reaguje trenutno bez ikakvog kašnjenja.
+Pitanja se nalaze u fajlu `src/data/questions.ts`:
 
-### Kako podesiti Firebase za 2 minuta (bez kartice):
-1. Otvorite [console.firebase.google.com](https://console.firebase.google.com) i kliknite **"Add project"** (nazovite npr. *sigurnost-kviz*).
-2. U lijevom meniju kliknite na **Build** → **Realtime Database** → **Create Database** (izaberite lokaciju npr. *europe-west1*).
-3. Na sledećem koraku izaberite **"Start in test mode"** i kliknite **Enable**.
-4. Kliknite na ikonu zupčanika (gore lijevo pored *Project Overview*) → **Project settings**.
-5. Pod karticom *General* skrolujte dole do *Your apps*, kliknite na ikonicu veba **`</>`**, registrujte aplikaciju i vidjećete `firebaseConfig` objekat.
-6. Kopirajte te vrijednosti u vašu datoteku `.env.local` (ili u podešavanjima na Vercelu pod *Environment Variables*):
+### Nivo 1: Osnovni nivo (Zagrijavanje)
+1. **Lozinke i Passphrase**: Zašto su duge fraze (16+ karaktera) otpornije na Brute-force napade.
+2. **Spear Phishing**: Razlika između masovnog i ciljanog phishing napada skrojenog za pojedinca.
+3. **Dvofaktorska autentifikacija (2FA)**: Zašto su autentifikatorske aplikacije/hardverski ključevi sigurniji od SMS kodova (SIM Swap).
+4. **Javni Wi-Fi i Man-in-the-Middle**: Opasnosti otvorenih mreža i lažnih pristupnih tačaka ("Evil Twin").
 
-```env
-NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSy...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=sigurnost-kviz.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://sigurnost-kviz-default-rtdb.europe-west1.firebasedatabase.app
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=sigurnost-kviz
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=sigurnost-kviz.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
-NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:...
-NEXT_PUBLIC_ADMIN_PIN=sergej2024
-```
+### Nivo 2: Srednji nivo (Srednjoškolske teme)
+5. **OSINT (Open Source Intelligence)**: Kako hakeri prikupljaju javno dostupne podatke za profilisanje mete.
+6. **HTTPS i SSL/TLS katanac**: Zašto i lažni phishing sajtovi danas mogu imati katanac i HTTPS.
+7. **Infostealeri**: Kako se kradljivci lozinki šire preko piratskih modova i igara na Discordu/YouTube-u.
+8. **Pravilo 3-2-1 za Backup**: Zlatni standard pravljenja rezervnih kopija za zaštitu od Ransomware-a.
+9. **Session Hijacking**: Kako krađa sesijskih kolačića (Cookies) omogućava ulazak na nalog bez lozinke i 2FA.
 
-Čim ove varijable unesete, svi mobilni telefoni u učionici će u realnom vremenu biti povezani preko brzih web-socketa!
-
----
-
-## 📚 Spisak 14 Pitanja o Sigurnosti na Internetu
-
-Pitanja se nalaze u fajlu `src/data/questions.ts` i možete ih po želji lako izmijeniti ili dodati nova:
-
-1. **Lozinke**: Koja lozinka je najsigurnija (primjer sa simbolima, velikim/malim slovima i brojevima).
-2. **Phishing (pecanje)**: Šta je phishing i kako prepoznati lažne linkove i poruke.
-3. **Dvofaktorska autentifikacija (2FA)**: Šta znači dodatni nivo zaštite kod prijave.
-4. **Sumnjive poruke na Instagramu**: Kako reagovati na poruke "Vidi ko priča o tebi".
-5. **Javni Wi-Fi**: Zašto nije sigurno unositi lozinke i plaćati preko otvorenog Wi-Fi-ja u kafiću.
-6. **Digitalni otisak (Digital Footprint)**: Sve što objavimo ostaje trajno zabilježeno.
-7. **Cyberbullying (Digitalno nasilje)**: Definicija i prepoznavanje nasilja na mreži.
-8. **Reakcija na nasilje**: Sačuvati dokaze (screenshot) i obratiti se odraslima / stručnim službama.
-9. **HTTPS i katanac**: Kako prepoznati šifrovanu i bezbjednu veb stranicu.
-10. **Krekovane igrice i piraterija**: Opasnost od trojanaca, virusa i kradljivaca lozinki.
-11. **Privatnost ličnih podataka**: Zabrana dijeljenja kućne adrese, broja telefona i škole.
-12. **Ransomware**: Zlonamjerni softver koji zaključa fajlove i traži otkup.
-13. **Digitalni bonton (Netiquette)**: Poštovanje drugih i ponašanje kao u stvarnom životu.
-14. **Nepoznate osobe sa mreže**: Odbijanje tajnih susreta sa ljudima upoznatim u video igricama.
+### Nivo 3: Napredni nivo (Sajber izazov)
+10. **DDoS i Botnet**: Kako mreža zaraženih uređaja preplavljuje i obara servere.
+11. **Deepfake AI Prevare**: Korištenje vještačke inteligencije za kloniranje glasa i lica u prevarama.
+12. **Zero-Day ranjivost**: Šta znači propust za koji proizvođač još nema zakrpu.
+13. **Dozvole aplikacija (App Permissions)**: Princip najmanjih privilegija i špijunski softver.
+14. **Etičko hakovanje (White Hat)**: Odgovorno prijavljivanje propusta kroz Bug Bounty programe.
 
 ---
 
-Srećno Sergeju na prezentaciji u školi P.P. Njegoš Banja Luka! 🎓🎉
+Srećno Sergeju na prezentaciji i kvizu! 🎓🎉
