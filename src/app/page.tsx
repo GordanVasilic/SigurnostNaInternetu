@@ -128,23 +128,23 @@ export default function StudentHomePage() {
       <main className="flex-1 flex flex-col items-center justify-center p-4">
         {/* ================= STATE 1: NOT JOINED YET ================= */}
         {!player && quizState.status !== "finished" && (
-          <div className="w-full max-w-md mx-auto my-auto py-6">
+          <div className="w-full max-w-md mx-auto my-auto py-2 sm:py-6">
             {/* Header / Hero */}
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-cyan-950/70 text-cyan-400 border border-cyan-800/50 text-xs font-bold uppercase tracking-wider mb-3">
+            <div className="text-center mb-4 sm:mb-6">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/70 text-cyan-400 border border-cyan-800/50 text-xs font-bold uppercase tracking-wider mb-2 sm:mb-3">
                 <Shield className="w-3.5 h-3.5" />
                 OŠ Petar Petrović Njegoš • Banja Luka
               </div>
-              <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
+              <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white">
                 Sigurnost na Internetu
               </h1>
-              <p className="text-slate-400 text-sm mt-1.5">
+              <p className="text-slate-400 text-xs sm:text-sm mt-1">
                 Školski kviz za 9. razred • Pripremi se i pokaži znanje!
               </p>
             </div>
 
             {/* Join Form Card */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-7 shadow-2xl backdrop-blur-xl">
+            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-7 shadow-2xl backdrop-blur-xl">
               <form onSubmit={handleJoin} className="flex flex-col gap-5">
                 {/* Avatar Picker */}
                 <AvatarPicker

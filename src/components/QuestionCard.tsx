@@ -183,7 +183,7 @@ export function QuestionCard({
               type="button"
               disabled={localAnswered || timeExpired}
               onClick={() => handleOptionClick(idx)}
-              className={`w-full min-h-[64px] p-4 rounded-2xl border-2 font-bold text-base sm:text-lg flex items-center gap-3.5 text-left transition-all duration-200 active:scale-98 ${buttonStyle}`}
+              className={`w-full min-h-[60px] sm:min-h-[64px] p-3.5 sm:p-4 rounded-2xl border-2 font-bold text-sm sm:text-lg flex items-center gap-3 text-left transition-all duration-150 active:scale-[0.98] touch-manipulation select-none ${buttonStyle}`}
             >
               <div
                 className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black shrink-0 ${

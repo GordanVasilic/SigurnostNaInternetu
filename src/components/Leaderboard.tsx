@@ -169,22 +169,22 @@ export function Leaderboard({ players, isAdmin = false, onResetQuiz }: Leaderboa
       )}
 
       {/* Action Buttons: Detailed Statistics & Reset */}
-      <div className="flex flex-wrap items-center justify-center gap-3 w-full mb-8">
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-lg mb-8 px-2">
         <Link
           href="/stats"
-          className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02] active:scale-98"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 transition-all active:scale-95 text-center"
         >
-          <BarChart3 className="w-5 h-5" />
-          <span>Pogledaj detaljnu statistiku po pitanjima</span>
+          <BarChart3 className="w-5 h-5 shrink-0" />
+          <span>Pogledaj detaljnu statistiku</span>
         </Link>
 
         {isAdmin && onResetQuiz && (
           <button
             onClick={onResetQuiz}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-sm border border-slate-700 transition-colors"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-sm border border-slate-700 transition-colors active:scale-95 text-center"
           >
-            <RotateCcw className="w-4 h-4" />
-            <span>Ponovo pokreni kviz</span>
+            <RotateCcw className="w-4 h-4 shrink-0" />
+            <span>Resetuj kviz</span>
           </button>
         )}
       </div>
