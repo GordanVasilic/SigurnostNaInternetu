@@ -22,11 +22,13 @@ function getCacheFilePath(): string {
 }
 
 function readRoomsFromDisk(): Record<string, QuizState> {
+  const p = getCacheFilePath();
   try {
-    const p = getCacheFilePath();
     if (fs.existsSync(p)) {
       const raw = fs.readFileSync(p, "utf-8");
-      return JSON.parse(raw);
+      if (raw && raw.trim().length > 0) {
+        return JSON.parse(raw);
+      }
     }
   } catch {
     // fallback
@@ -37,16 +39,36 @@ function readRoomsFromDisk(): Record<string, QuizState> {
 function writeRoomsToDisk(data: Record<string, QuizState>) {
   try {
     const p = getCacheFilePath();
-    fs.writeFileSync(p, JSON.stringify(data));
+    const tempP = `${p}.${process.pid}.${Date.now()}.tmp`;
+    fs.writeFileSync(tempP, JSON.stringify(data));
+    try {
+      fs.renameSync(tempP, p);
+    } catch {
+      fs.copyFileSync(tempP, p);
+      try {
+        fs.unlinkSync(tempP);
+      } catch {}
+    }
   } catch {
     // fallback
   }
 }
 
 function getOrCreateRoom(roomCode = "sigurnost"): QuizState {
-  const diskRooms = readRoomsFromDisk();
-  if (diskRooms[roomCode]) {
-    rooms[roomCode] = diskRooms[roomCode];
+  if (!rooms[roomCode]) {
+    const diskRooms = readRoomsFromDisk();
+    if (diskRooms[roomCode]) {
+      rooms[roomCode] = diskRooms[roomCode];
+    }
+  } else {
+    // If memory already has room, only update from disk if disk has a strictly newer updatedAt
+    const diskRooms = readRoomsFromDisk();
+    if (
+      diskRooms[roomCode] &&
+      (diskRooms[roomCode].updatedAt || 0) > (rooms[roomCode].updatedAt || 0)
+    ) {
+      rooms[roomCode] = diskRooms[roomCode];
+    }
   }
 
   if (!rooms[roomCode]) {
@@ -121,9 +143,13 @@ export async function POST(req: NextRequest) {
     switch (action) {
       case "join": {
         const player: Player = data.player;
-        player.resetId = state.resetId || 1;
         if (!state.players) state.players = {};
-        state.players[player.id] = player;
+        const existing = state.players[player.id];
+        state.players[player.id] = {
+          ...(existing || {}),
+          ...player,
+          resetId: state.resetId || 1,
+        };
         state.updatedAt = now;
         writeRoomsToDisk(rooms);
         break;

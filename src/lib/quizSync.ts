@@ -167,16 +167,16 @@ async function sendApiAction(roomCode: string, action: string, data?: unknown): 
   return null;
 }
 
-// 2. Player joins
-export async function joinPlayer(roomCode: string, player: Player): Promise<void> {
+// 2. Player joins / updates profile
+export async function joinPlayer(roomCode: string, player: Player): Promise<QuizState | null> {
   if (isFirebaseConfigured && db) {
     const playerRef = ref(db, `rooms/${roomCode}/players/${player.id}`);
     await set(playerRef, player);
-    return;
+    return null;
   }
 
   // Use Built-in API
-  await sendApiAction(roomCode, "join", { player });
+  return await sendApiAction(roomCode, "join", { player });
 }
 
 // 2b. Player leaves / changes profile

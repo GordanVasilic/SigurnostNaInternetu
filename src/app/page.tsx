@@ -11,17 +11,17 @@ import {
   DEFAULT_ROOM_CODE,
   subscribeToQuizState,
   joinPlayer,
-  leavePlayer,
   submitAnswer,
   createInitialState,
 } from "@/lib/quizSync";
 import { QuizState, Player } from "@/types/quiz";
-import { Shield, Sparkles, Users, Lock, ArrowRight, Hourglass, LogOut } from "lucide-react";
+import { Shield, Sparkles, Users, Lock, ArrowRight, Hourglass, Check, X } from "lucide-react";
 import { playStartFanfare } from "@/lib/sounds";
 
 export default function StudentHomePage() {
   const [quizState, setQuizState] = useState<QuizState>(createInitialState());
   const [player, setPlayer] = useState<Player | null>(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [name, setName] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarOption>(AVATARS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,14 +42,14 @@ export default function StudentHomePage() {
 
     try {
       const parsed: Player = JSON.parse(savedPlayer);
-      const currentResetId = quizState.resetId || 1;
-      const playerResetId = parsed.resetId || 1;
 
-      // If room was reset (currentResetId > playerResetId), discard stale profile
-      if (currentResetId > playerResetId) {
-        localStorage.removeItem("sergej_quiz_player");
-        setPlayer(null);
-        return;
+      // Only evaluate resetId when we have received real server state
+      if (quizState.updatedAt && quizState.resetId && parsed.resetId) {
+        if (quizState.resetId > parsed.resetId) {
+          localStorage.removeItem("sergej_quiz_player");
+          setPlayer(null);
+          return;
+        }
       }
 
       // If quiz finished and is now back in lobby, discard old profile so user re-joins
@@ -61,31 +61,36 @@ export default function StudentHomePage() {
       }
 
       setPlayer(parsed);
+      setName(parsed.name);
+      const matchedAvatar = AVATARS.find((a) => a.emoji === parsed.avatar);
+      if (matchedAvatar) setSelectedAvatar(matchedAvatar);
     } catch {
       localStorage.removeItem("sergej_quiz_player");
       setPlayer(null);
     }
-  }, [quizState.resetId, quizState.status]);
+  }, [quizState.resetId, quizState.status, quizState.updatedAt]);
 
   // 3. Auto-logout on reset: ONLY when admin resets the quiz (resetId changes or quiz finished -> lobby)
   useEffect(() => {
     if (!player) return;
+    if (!quizState.updatedAt) return;
 
     const currentResetId = quizState.resetId || 1;
     const playerResetId = player.resetId || 1;
 
-    // A) Admin reset the quiz (resetId incremented on server)
-    const isOldSession = currentResetId > playerResetId;
+    // A) Admin reset the quiz (resetId incremented on server after player joined)
+    const isResetByAdmin = currentResetId > playerResetId;
 
     // B) Player played a finished game and status is back in lobby (admin reset quiz)
     const hasFinishedGame = Boolean(player.answers && Object.keys(player.answers).length > 0);
     const isResetFromFinished = quizState.status === "lobby" && hasFinishedGame;
 
-    if (isOldSession || isResetFromFinished) {
+    if (isResetByAdmin || isResetFromFinished) {
       setPlayer(null);
+      setIsEditingProfile(false);
       localStorage.removeItem("sergej_quiz_player");
     }
-  }, [quizState.resetId, quizState.status, player]);
+  }, [quizState.resetId, quizState.status, quizState.updatedAt, player]);
 
   // 4. Keep local player score/state updated with server state
   useEffect(() => {
@@ -95,7 +100,25 @@ export default function StudentHomePage() {
     }
   }, [quizState.players, player?.id]);
 
-  // 5. Handle countdown animation
+  // 5. Self-healing heartbeat: re-register player in lobby if missing from server (e.g. server restart)
+  useEffect(() => {
+    if (
+      player &&
+      quizState.status === "lobby" &&
+      quizState.updatedAt &&
+      quizState.players &&
+      !quizState.players[player.id] &&
+      (!player.answers || Object.keys(player.answers).length === 0)
+    ) {
+      const currentResetId = quizState.resetId || 1;
+      const playerResetId = player.resetId || 1;
+      if (playerResetId >= currentResetId) {
+        joinPlayer(DEFAULT_ROOM_CODE, player).catch(console.warn);
+      }
+    }
+  }, [quizState.players, quizState.status, quizState.updatedAt, quizState.resetId, player]);
+
+  // 6. Handle countdown animation
   useEffect(() => {
     if (quizState.status === "countdown" && quizState.countdownStartTime) {
       playStartFanfare();
@@ -113,34 +136,62 @@ export default function StudentHomePage() {
     }
   }, [quizState.status, quizState.countdownStartTime]);
 
-  // Join quiz handler
-  const handleJoin = async (e: React.FormEvent) => {
+  // Join or Update Profile handler (preserves player ID to prevent duplicates!)
+  const handleSubmitProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
     setIsSubmitting(true);
+    const existingId = player?.id;
+    const playerId = existingId || ("p_" + Math.random().toString(36).substring(2, 9));
     const currentSessionResetId = quizState.resetId || 1;
-    const playerId = "p_" + Math.random().toString(36).substring(2, 9);
-    const newPlayer: Player = {
+
+    const profileData: Player = {
+      ...(player || {}),
       id: playerId,
       name: name.trim(),
       avatar: selectedAvatar.emoji,
-      score: 0,
-      totalTimeMs: 0,
-      joinedAt: Date.now(),
+      score: player?.score || 0,
+      totalTimeMs: player?.totalTimeMs || 0,
+      joinedAt: player?.joinedAt || Date.now(),
       resetId: currentSessionResetId,
-      answers: {},
+      answers: player?.answers || {},
     };
 
     try {
-      await joinPlayer(DEFAULT_ROOM_CODE, newPlayer);
-      localStorage.setItem("sergej_quiz_player", JSON.stringify(newPlayer));
-      setPlayer(newPlayer);
+      const serverState = await joinPlayer(DEFAULT_ROOM_CODE, profileData);
+      if (serverState?.resetId) {
+        profileData.resetId = serverState.resetId;
+      }
+      localStorage.setItem("sergej_quiz_player", JSON.stringify(profileData));
+      setPlayer(profileData);
+      if (serverState) {
+        setQuizState(serverState);
+      }
+      setIsEditingProfile(false);
     } catch (err) {
-      console.error("Greška pri prijavi:", err);
+      console.error("Greška pri prijavi / izmjeni:", err);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleStartEditProfile = () => {
+    if (player) {
+      setName(player.name);
+      const matched = AVATARS.find((a) => a.emoji === player.avatar);
+      if (matched) setSelectedAvatar(matched);
+    }
+    setIsEditingProfile(true);
+  };
+
+  const handleCancelEditProfile = () => {
+    if (player) {
+      setName(player.name);
+      const matched = AVATARS.find((a) => a.emoji === player.avatar);
+      if (matched) setSelectedAvatar(matched);
+    }
+    setIsEditingProfile(false);
   };
 
   // Submit question answer
@@ -159,22 +210,6 @@ export default function StudentHomePage() {
     }
   };
 
-  const handleLogout = async () => {
-    if (player) {
-      const oldId = player.id;
-      setPlayer(null);
-      localStorage.removeItem("sergej_quiz_player");
-      try {
-        await leavePlayer(DEFAULT_ROOM_CODE, oldId);
-      } catch (err) {
-        console.warn("Greška pri odjavi starog profila:", err);
-      }
-    } else {
-      localStorage.removeItem("sergej_quiz_player");
-      setPlayer(null);
-    }
-  };
-
   // Determine current question player answer status
   const currentAnswer = player?.answers?.[quizState.currentQuestionIndex];
   const hasAnsweredCurrent = Boolean(currentAnswer);
@@ -184,26 +219,28 @@ export default function StudentHomePage() {
       <Navbar />
 
       <main className="flex-1 flex flex-col items-center justify-center p-4">
-        {/* ================= STATE 1: NOT JOINED YET ================= */}
-        {!player && quizState.status !== "finished" && (
+        {/* ================= STATE 1: JOIN FORM OR EDIT PROFILE ================= */}
+        {((!player && quizState.status !== "finished") || (player && isEditingProfile && quizState.status === "lobby")) && (
           <div className="w-full max-w-md mx-auto my-auto py-2 sm:py-6">
             {/* Header / Hero */}
             <div className="text-center mb-5 sm:mb-7">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-950/70 text-cyan-400 border border-cyan-800/50 text-xs sm:text-sm font-bold uppercase tracking-wider mb-2.5 sm:mb-3">
                 <Shield className="w-4 h-4" />
-                Sajber Bezbjednost • Edukativni Kviz
+                {player ? "Uredi profil" : "Sajber Bezbjednost • Edukativni Kviz"}
               </div>
               <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white">
-                Sigurnost na Internetu
+                {player ? "Izmijeni profil" : "Sigurnost na Internetu"}
               </h1>
               <p className="text-slate-300 text-sm sm:text-base mt-2 font-medium">
-                Interaktivni izazov znanja • Pripremi se i testiraj svoje vještine!
+                {player
+                  ? "Izmijeni ime ili avatar prije nego što kviz počne"
+                  : "Interaktivni izazov znanja • Pripremi se i testiraj svoje vještine!"}
               </p>
             </div>
 
-            {/* Join Form Card */}
+            {/* Form Card */}
             <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl backdrop-blur-xl">
-              <form onSubmit={handleJoin} className="flex flex-col gap-5">
+              <form onSubmit={handleSubmitProfile} className="flex flex-col gap-5">
                 {/* Avatar Picker */}
                 <AvatarPicker
                   selectedAvatarId={selectedAvatar.id}
@@ -226,15 +263,38 @@ export default function StudentHomePage() {
                   />
                 </div>
 
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  disabled={isSubmitting || !name.trim()}
-                  className="w-full mt-2 py-4 sm:py-5 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-xl sm:text-2xl shadow-xl shadow-cyan-500/25 transition-all duration-200 active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-                >
-                  <span>{isSubmitting ? "Prijava u toku..." : "Pridruži se kvizu"}</span>
-                  <ArrowRight className="w-6 h-6 stroke-[3]" />
-                </button>
+                {/* Action Buttons */}
+                <div className="flex flex-col gap-3 mt-2">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !name.trim()}
+                    className="w-full py-4 sm:py-5 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-xl sm:text-2xl shadow-xl shadow-cyan-500/25 transition-all duration-200 active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                  >
+                    <span>
+                      {isSubmitting
+                        ? "Snimanje..."
+                        : player
+                        ? "Sačuvaj izmjene"
+                        : "Pridruži se kvizu"}
+                    </span>
+                    {player ? (
+                      <Check className="w-6 h-6 stroke-[3]" />
+                    ) : (
+                      <ArrowRight className="w-6 h-6 stroke-[3]" />
+                    )}
+                  </button>
+
+                  {player && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditProfile}
+                      className="w-full py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-base transition-all active:scale-98 flex items-center justify-center gap-2"
+                    >
+                      <X className="w-5 h-5" />
+                      <span>Odustani</span>
+                    </button>
+                  )}
+                </div>
               </form>
 
               <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-center gap-2 text-sm text-slate-300 font-medium">
@@ -246,7 +306,7 @@ export default function StudentHomePage() {
         )}
 
         {/* ================= STATE 2: WAITING IN LOBBY ================= */}
-        {player && quizState.status === "lobby" && (
+        {player && !isEditingProfile && quizState.status === "lobby" && (
           <div className="w-full max-w-lg mx-auto text-center py-8 px-4">
             <div className="relative inline-block mb-4">
               <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-6xl sm:text-7xl shadow-2xl ring-4 ring-cyan-400/40 animate-pulse">
@@ -274,10 +334,10 @@ export default function StudentHomePage() {
             <div className="mb-5">
               <button
                 type="button"
-                onClick={handleLogout}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-cyan-300 border border-slate-700 text-sm font-bold transition-all active:scale-95 shadow-sm"
+                onClick={handleStartEditProfile}
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-cyan-300 border border-slate-700 text-sm sm:text-base font-bold transition-all active:scale-95 shadow-md"
               >
-                <LogOut className="w-4 h-4" />
+                <Sparkles className="w-4 h-4 text-cyan-400" />
                 <span>Promijeni ime ili avatar</span>
               </button>
             </div>
@@ -296,14 +356,17 @@ export default function StudentHomePage() {
                 {Object.values(quizState.players || {}).map((p) => (
                   <div
                     key={p.id}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold ${
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                       p.id === player.id
-                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
+                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-400 ring-2 ring-cyan-400/30 font-black"
                         : "bg-slate-800 text-slate-200 border border-slate-700/60"
                     }`}
                   >
                     <span className="text-base">{p.avatar}</span>
-                    <span className="truncate max-w-[100px]">{p.name}</span>
+                    <span className="truncate max-w-[120px]">
+                      {p.name}
+                      {p.id === player.id ? " (Ti)" : ""}
+                    </span>
                   </div>
                 ))}
               </div>
