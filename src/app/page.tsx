@@ -290,19 +290,7 @@ export default function StudentHomePage() {
 
         {/* ================= STATE 5: FINISHED / LEADERBOARD ================= */}
         {quizState.status === "finished" && (
-          <div className="w-full flex flex-col items-center">
-            <Leaderboard players={quizState.players || {}} />
-            <div className="mb-10 text-center">
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition-all active:scale-95 shadow-md"
-              >
-                <LogOut className="w-4 h-4 text-cyan-400" />
-                <span>Prijavi se sa novim imenom ili avatarom</span>
-              </button>
-            </div>
-          </div>
+          <Leaderboard players={quizState.players || {}} />
         )}
       </main>
     </div>
