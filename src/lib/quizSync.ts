@@ -242,34 +242,17 @@ export async function finishQuiz(roomCode: string): Promise<void> {
 }
 
 // 6. Reset Quiz to lobby
-export async function resetQuiz(roomCode: string, keepPlayers = false): Promise<void> {
+export async function resetQuiz(roomCode: string): Promise<void> {
   const now = Date.now();
   if (isFirebaseConfigured && db) {
     const resetData: Partial<QuizState> = {
       status: "lobby",
       currentQuestionIndex: 0,
       questionStartTime: 0,
+      players: {},
+      resetAt: now,
       updatedAt: now,
     };
-
-    if (!keepPlayers) {
-      resetData.players = {};
-    } else {
-      const current = (await get(ref(db, `rooms/${roomCode}`))).val();
-      if (current && current.players) {
-        const resetPlayers: Record<string, Player> = {};
-        Object.keys(current.players).forEach((id) => {
-          const p = current.players[id];
-          resetPlayers[id] = {
-            ...p,
-            score: 0,
-            totalTimeMs: 0,
-            answers: {},
-          };
-        });
-        resetData.players = resetPlayers;
-      }
-    }
 
     const roomRef = ref(db, `rooms/${roomCode}`);
     await update(roomRef, resetData);
@@ -277,7 +260,7 @@ export async function resetQuiz(roomCode: string, keepPlayers = false): Promise<
   }
 
   // Use Built-in API
-  await sendApiAction(roomCode, "reset", { keepPlayers });
+  await sendApiAction(roomCode, "reset");
 }
 
 // 7. Submit Answer by player

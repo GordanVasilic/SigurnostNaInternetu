@@ -136,7 +136,7 @@ export default function AdminPage() {
   };
 
   const handleResetQuiz = async () => {
-    if (confirm("Da li ste sigurni da želite resetovati kviz i vratiti sve u čekaonicu?")) {
+    if (confirm("Da li ste sigurni da želite resetovati kviz i vratiti sve na početak (biranje avatara i imena)?")) {
       try {
         confetti.reset();
       } catch {}
@@ -147,8 +147,10 @@ export default function AdminPage() {
         currentQuestionIndex: 0,
         questionStartTime: 0,
         countdownStartTime: undefined,
+        players: {},
+        resetAt: Date.now(),
       }));
-      await resetQuiz(DEFAULT_ROOM_CODE, true); // keep connected players
+      await resetQuiz(DEFAULT_ROOM_CODE);
     }
   };
 
@@ -165,8 +167,9 @@ export default function AdminPage() {
         questionStartTime: 0,
         countdownStartTime: undefined,
         players: {},
+        resetAt: Date.now(),
       }));
-      await resetQuiz(DEFAULT_ROOM_CODE, false); // clear players
+      await resetQuiz(DEFAULT_ROOM_CODE);
     }
   };
 

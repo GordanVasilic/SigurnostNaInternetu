@@ -35,20 +35,46 @@ export default function StudentHomePage() {
     return () => unsubscribe();
   }, []);
 
-  // 2. Restore saved player from localStorage if any
+  // 2. Restore saved player from localStorage only if valid in active room
   useEffect(() => {
     const savedPlayer = localStorage.getItem("sergej_quiz_player");
-    if (savedPlayer) {
-      try {
-        const parsed: Player = JSON.parse(savedPlayer);
+    if (!savedPlayer) return;
+
+    try {
+      const parsed: Player = JSON.parse(savedPlayer);
+      if (quizState.players) {
+        const isInPlayers = Boolean(quizState.players[parsed.id]);
+        const wasReset = Boolean(quizState.resetAt && parsed.joinedAt && parsed.joinedAt < quizState.resetAt);
+
+        if (isInPlayers && !wasReset && quizState.status !== "finished") {
+          setPlayer(parsed);
+        } else if (!isInPlayers || wasReset) {
+          localStorage.removeItem("sergej_quiz_player");
+          setPlayer(null);
+        }
+      } else {
         setPlayer(parsed);
-      } catch {
-        // ignore
+      }
+    } catch {
+      localStorage.removeItem("sergej_quiz_player");
+      setPlayer(null);
+    }
+  }, [quizState.players, quizState.resetAt, quizState.status]);
+
+  // 3. Auto-logout on reset: When admin resets quiz, return all players to avatar & name selection
+  useEffect(() => {
+    if (player) {
+      const isInPlayers = Boolean(quizState.players && quizState.players[player.id]);
+      const wasReset = Boolean(quizState.resetAt && player.joinedAt && player.joinedAt < quizState.resetAt);
+
+      if (quizState.status === "lobby" && (!isInPlayers || wasReset)) {
+        setPlayer(null);
+        localStorage.removeItem("sergej_quiz_player");
       }
     }
-  }, []);
+  }, [quizState.status, quizState.players, quizState.resetAt, player]);
 
-  // 3. Keep local player score/state updated with server state
+  // 4. Keep local player score/state updated with server state
   useEffect(() => {
     if (player && quizState.players && quizState.players[player.id]) {
       const serverPlayer = quizState.players[player.id];

@@ -26,6 +26,7 @@ export interface QuizState {
   durationSeconds: number; // 20 seconds
   roomCode: string;
   updatedAt: number;
+  resetAt?: number;
   players?: Record<string, Player>;
 }
 

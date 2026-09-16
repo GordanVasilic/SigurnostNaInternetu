@@ -189,26 +189,13 @@ export async function POST(req: NextRequest) {
       }
 
       case "reset": {
-        const keepPlayers = Boolean(data?.keepPlayers);
         state.status = "lobby";
         state.currentQuestionIndex = 0;
         state.questionStartTime = 0;
         state.countdownStartTime = undefined;
+        state.players = {}; // Always clear players on reset so everyone re-joins fresh
+        state.resetAt = now;
         state.updatedAt = now;
-
-        if (!keepPlayers) {
-          state.players = {};
-        } else if (state.players) {
-          Object.keys(state.players).forEach((id) => {
-            const p = state.players![id];
-            state.players![id] = {
-              ...p,
-              score: 0,
-              totalTimeMs: 0,
-              answers: {},
-            };
-          });
-        }
         writeRoomsToDisk(rooms);
         break;
       }
