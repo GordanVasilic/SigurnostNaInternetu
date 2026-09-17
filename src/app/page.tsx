@@ -64,6 +64,13 @@ export default function StudentHomePage() {
   const [isSuperseded, setIsSuperseded] = useState(false);
   const lastJoinAttemptRef = useRef<number>(Date.now());
 
+  const playerRef = useRef(player);
+  playerRef.current = player;
+  const isSupersededRef = useRef(isSuperseded);
+  isSupersededRef.current = isSuperseded;
+  const quizStateRef = useRef(quizState);
+  quizStateRef.current = quizState;
+
   // Claim active tab on device: only the newest opened page remains active
   useEffect(() => {
     localStorage.setItem("sergej_quiz_active_tab", tabId);
@@ -101,20 +108,21 @@ export default function StudentHomePage() {
     const handleUnload = () => {
       if (typeof window === "undefined") return;
       const currentActive = localStorage.getItem("sergej_quiz_active_tab");
-      if (currentActive === tabId && player && quizState.status === "lobby") {
-        sendBeaconLeave(DEFAULT_ROOM_CODE, player.id);
-        localStorage.removeItem("sergej_quiz_active_tab");
+      if (
+        currentActive === tabId &&
+        playerRef.current &&
+        quizStateRef.current.status === "lobby"
+      ) {
+        sendBeaconLeave(DEFAULT_ROOM_CODE, playerRef.current.id);
       }
     };
 
-    window.addEventListener("pagehide", handleUnload);
     window.addEventListener("beforeunload", handleUnload);
 
     return () => {
-      window.removeEventListener("pagehide", handleUnload);
       window.removeEventListener("beforeunload", handleUnload);
     };
-  }, [player, quizState.status, tabId]);
+  }, [tabId]);
 
   // 1. Subscribe to quiz room state (sending heartbeat if in lobby)
   useEffect(() => {
@@ -123,10 +131,10 @@ export default function StudentHomePage() {
       (state) => {
         setQuizState(state);
       },
-      () => (isSuperseded ? undefined : player?.id)
+      () => (isSupersededRef.current ? undefined : playerRef.current?.id)
     );
     return () => unsubscribe();
-  }, [player?.id, isSuperseded]);
+  }, []);
 
   // 2. Restore saved player from session/local storage if it belongs to active session
   useEffect(() => {
@@ -247,6 +255,7 @@ export default function StudentHomePage() {
       score: player?.score || 0,
       totalTimeMs: player?.totalTimeMs || 0,
       joinedAt: player?.joinedAt || Date.now(),
+      lastSeen: Date.now(),
       resetId: currentSessionResetId,
       answers: player?.answers || {},
     };

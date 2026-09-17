@@ -53,7 +53,7 @@ function writeRoomsToDisk(data: Record<string, QuizState>) {
   }
 }
 
-function getOrCreateRoom(roomCode = "sigurnost"): QuizState {
+function getOrCreateRoom(roomCode = "sigurnost", activePlayerId?: string | null): QuizState {
   const diskRooms = readRoomsFromDisk();
   const diskRoom = diskRooms[roomCode];
   const memRoom = rooms[roomCode];
@@ -101,21 +101,14 @@ function getOrCreateRoom(roomCode = "sigurnost"): QuizState {
 
       for (const [id, p] of Object.entries(diskRoom.players || {})) {
         if (!p.resetId || p.resetId === activeReset) {
-          // Only keep active players in lobby
-          const lastActive = p.lastSeen || p.joinedAt || 0;
-          if (diskRoom.status !== "lobby" || nowMs - lastActive < 8000) {
-            mergedPlayers[id] = p;
-          }
+          mergedPlayers[id] = p;
         }
       }
 
       for (const [id, p] of Object.entries(memRoom!.players || {})) {
         if (!p.resetId || p.resetId === activeReset) {
-          const lastActive = p.lastSeen || p.joinedAt || 0;
-          if (memRoom!.status !== "lobby" || nowMs - lastActive < 8000) {
-            if (!mergedPlayers[id] || (p.lastSeen || 0) >= (mergedPlayers[id].lastSeen || 0)) {
-              mergedPlayers[id] = p;
-            }
+          if (!mergedPlayers[id] || (p.lastSeen || 0) >= (mergedPlayers[id].lastSeen || 0)) {
+            mergedPlayers[id] = p;
           }
         }
       }
@@ -131,12 +124,21 @@ function getOrCreateRoom(roomCode = "sigurnost"): QuizState {
 
   const now = Date.now();
 
-  // Prune inactive players in lobby (if closed / no heartbeat for > 8s)
+  // If this request is from an active player, refresh their lastSeen right away!
+  if (activePlayerId && state.players?.[activePlayerId]) {
+    state.players[activePlayerId].lastSeen = now;
+    if (rooms[roomCode]?.players?.[activePlayerId]) {
+      rooms[roomCode].players[activePlayerId].lastSeen = now;
+    }
+  }
+
+  // Prune only truly inactive / dead connections in lobby (no contact for > 45s)
   if (state.status === "lobby" && state.players) {
     let pruned = false;
     for (const [id, p] of Object.entries(state.players)) {
-      const lastActive = p.lastSeen || p.joinedAt || 0;
-      if (now - lastActive > 8000) {
+      if (activePlayerId && id === activePlayerId) continue;
+      const lastActive = p.lastSeen || p.joinedAt || now;
+      if (now - lastActive > 45000) {
         delete state.players[id];
         pruned = true;
       }
@@ -183,15 +185,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const roomCode = searchParams.get("room") || "sigurnost";
   const playerId = searchParams.get("player");
-  const state = getOrCreateRoom(roomCode);
-  const now = Date.now();
-
-  if (playerId && state.players?.[playerId]) {
-    state.players[playerId].lastSeen = now;
-    if (rooms[roomCode]?.players?.[playerId]) {
-      rooms[roomCode].players[playerId].lastSeen = now;
-    }
-  }
+  const state = getOrCreateRoom(roomCode, playerId);
 
   return NextResponse.json(state, {
     headers: {
@@ -205,7 +199,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { room = "sigurnost", action, data } = body;
-    const state = getOrCreateRoom(room);
+    const targetPlayerId = action === "join" ? data?.player?.id : action === "leave" ? data?.playerId : undefined;
+    const state = getOrCreateRoom(room, targetPlayerId);
     const now = Date.now();
 
     switch (action) {
@@ -219,6 +214,8 @@ export async function POST(req: NextRequest) {
         state.players[player.id] = {
           ...(existing || {}),
           ...player,
+          lastSeen: now,
+          joinedAt: existing?.joinedAt || now,
           resetId: currentResetId,
         };
         state.updatedAt = now;
