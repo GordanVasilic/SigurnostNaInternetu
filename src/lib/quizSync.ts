@@ -150,18 +150,10 @@ export function subscribeToQuizState(
         }
 
         lastKnownState = data;
-        saveLocalState(roomCode, data, false);
         onUpdate(data);
       }
     } catch {
-      // Fallback to local state if offline
-      if (active) {
-        const local = getLocalState(roomCode);
-        if (!areStatesEqual(lastKnownState, local)) {
-          lastKnownState = local;
-          onUpdate(local);
-        }
-      }
+      // Ignore network hiccup, next poll in 1000ms will retry
     }
   };
 
@@ -171,29 +163,10 @@ export function subscribeToQuizState(
   // Poll every 1000ms for smooth live updates across all phones
   const pollInterval = setInterval(fetchApiState, 1000);
 
-  // Also listen for immediate tab-to-tab broadcast on the same device
-  const channel = getBroadcastChannel(roomCode);
-  const handleMessage = (e: MessageEvent) => {
-    if (e.data && e.data.type === "STATE_UPDATE" && e.data.state && active) {
-      const state = e.data.state as QuizState;
-      if (!areStatesEqual(lastKnownState, state)) {
-        lastKnownState = state;
-        onUpdate(state);
-      }
-    }
-  };
-
-  if (channel) {
-    channel.addEventListener("message", handleMessage);
-  }
-
   return () => {
     active = false;
     localSubscribersMap.get(roomCode)?.delete(onUpdate);
     clearInterval(pollInterval);
-    if (channel) {
-      channel.removeEventListener("message", handleMessage);
-    }
   };
 }
 
@@ -207,7 +180,6 @@ async function sendApiAction(roomCode: string, action: string, data?: unknown): 
     });
     if (res.ok) {
       const json = await res.json();
-      saveLocalState(roomCode, json, true);
       return json;
     }
   } catch (err) {

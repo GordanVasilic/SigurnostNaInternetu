@@ -16,41 +16,8 @@ import {
   createInitialState,
 } from "@/lib/quizSync";
 import { QuizState, Player } from "@/types/quiz";
-import { Shield, Sparkles, Users, Lock, ArrowRight, Hourglass, Check, X, AlertTriangle } from "lucide-react";
+import { Shield, Sparkles, Users, Lock, ArrowRight, Hourglass, Check, X } from "lucide-react";
 import { playStartFanfare } from "@/lib/sounds";
-
-function getDeviceId(): string {
-  if (typeof window === "undefined") return "dev_server";
-  let id = localStorage.getItem("sergej_quiz_device_id");
-  if (!id) {
-    id = "dev_" + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4);
-    localStorage.setItem("sergej_quiz_device_id", id);
-  }
-  return id;
-}
-
-function getStoredPlayer(): Player | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const session = sessionStorage.getItem("sergej_quiz_player");
-    if (session) return JSON.parse(session);
-    const local = localStorage.getItem("sergej_quiz_player");
-    if (local) return JSON.parse(local);
-  } catch {}
-  return null;
-}
-
-function saveStoredPlayer(p: Player | null) {
-  if (typeof window === "undefined") return;
-  if (p) {
-    const serialized = JSON.stringify(p);
-    sessionStorage.setItem("sergej_quiz_player", serialized);
-    localStorage.setItem("sergej_quiz_player", serialized);
-  } else {
-    sessionStorage.removeItem("sergej_quiz_player");
-    localStorage.removeItem("sergej_quiz_player");
-  }
-}
 
 export default function StudentHomePage() {
   const [quizState, setQuizState] = useState<QuizState>(createInitialState());
@@ -60,61 +27,33 @@ export default function StudentHomePage() {
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarOption>(AVATARS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [countdownNum, setCountdownNum] = useState<number | null>(null);
-  const [tabId] = useState(() => "tab_" + Math.random().toString(36).substring(2, 9) + "_" + Date.now().toString(36));
-  const [isSuperseded, setIsSuperseded] = useState(false);
   const lastJoinAttemptRef = useRef<number>(Date.now());
 
   const playerRef = useRef(player);
   playerRef.current = player;
-  const isSupersededRef = useRef(isSuperseded);
-  isSupersededRef.current = isSuperseded;
   const quizStateRef = useRef(quizState);
   quizStateRef.current = quizState;
 
-  // Claim active tab on device: only the newest opened page remains active
+  // On initial mount of a tab: clean any old cached data so user always starts fresh!
   useEffect(() => {
-    localStorage.setItem("sergej_quiz_active_tab", tabId);
+    try {
+      localStorage.removeItem("sergej_quiz_player");
+      localStorage.removeItem("sergej_quiz_device_id");
+      localStorage.removeItem("sergej_quiz_active_tab");
+      sessionStorage.removeItem("sergej_quiz_player");
+    } catch {}
+  }, []);
 
-    let channel: BroadcastChannel | null = null;
-    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
-      channel = new BroadcastChannel("sergej_tab_channel");
-      channel.postMessage({ type: "NEW_TAB_CLAIMED", activeTabId: tabId });
-
-      const handleMessage = (e: MessageEvent) => {
-        if (e.data && e.data.type === "NEW_TAB_CLAIMED" && e.data.activeTabId !== tabId) {
-          setIsSuperseded(true);
-        }
-      };
-      channel.addEventListener("message", handleMessage);
-    }
-
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === "sergej_quiz_active_tab" && e.newValue && e.newValue !== tabId) {
-        setIsSuperseded(true);
-      }
-    };
-    window.addEventListener("storage", handleStorage);
-
-    return () => {
-      if (channel) {
-        channel.close();
-      }
-      window.removeEventListener("storage", handleStorage);
-    };
-  }, [tabId]);
-
-  // When closing/unloading the page: remove player from lobby immediately
+  // When closing/unloading this tab: remove player from lobby immediately
   useEffect(() => {
     const handleUnload = () => {
-      if (typeof window === "undefined") return;
-      const currentActive = localStorage.getItem("sergej_quiz_active_tab");
-      if (
-        currentActive === tabId &&
-        playerRef.current &&
-        quizStateRef.current.status === "lobby"
-      ) {
+      if (playerRef.current && quizStateRef.current.status === "lobby") {
         sendBeaconLeave(DEFAULT_ROOM_CODE, playerRef.current.id);
       }
+      try {
+        sessionStorage.removeItem("sergej_quiz_player");
+        localStorage.removeItem("sergej_quiz_player");
+      } catch {}
     };
 
     window.addEventListener("beforeunload", handleUnload);
@@ -122,7 +61,7 @@ export default function StudentHomePage() {
     return () => {
       window.removeEventListener("beforeunload", handleUnload);
     };
-  }, [tabId]);
+  }, []);
 
   // 1. Subscribe to quiz room state (sending heartbeat if in lobby)
   useEffect(() => {
@@ -131,66 +70,32 @@ export default function StudentHomePage() {
       (state) => {
         setQuizState(state);
       },
-      () => (isSupersededRef.current ? undefined : playerRef.current?.id)
+      () => playerRef.current?.id
     );
     return () => unsubscribe();
   }, []);
 
-  // 2. Restore saved player from session/local storage if it belongs to active session
-  useEffect(() => {
-    const parsed = getStoredPlayer();
-    if (!parsed) return;
-
-    try {
-      // Only evaluate resetId when we have received real server state
-      if (quizState.resetId && parsed.resetId) {
-        if (quizState.resetId > parsed.resetId) {
-          saveStoredPlayer(null);
-          setPlayer(null);
-          return;
-        }
-      }
-
-      // If quiz finished and is now back in lobby, discard old profile so user re-joins
-      const hasFinishedGame = Boolean(parsed.answers && Object.keys(parsed.answers).length > 0);
-      if (quizState.status === "lobby" && hasFinishedGame) {
-        saveStoredPlayer(null);
-        setPlayer(null);
-        return;
-      }
-
-      setPlayer(parsed);
-      setName(parsed.name);
-      const matchedAvatar = AVATARS.find((a) => a.emoji === parsed.avatar);
-      if (matchedAvatar) setSelectedAvatar(matchedAvatar);
-    } catch {
-      saveStoredPlayer(null);
-      setPlayer(null);
-    }
-  }, [quizState.resetId, quizState.status]);
-
-  // 3. Auto-logout on reset: ONLY when admin resets the quiz (resetId changes or quiz finished -> lobby)
+  // 2. Auto-logout on reset: ONLY when admin resets the quiz while this player was in it
   useEffect(() => {
     if (!player) return;
 
     const currentResetId = quizState.resetId || 1;
     const playerResetId = player.resetId || 1;
+    const isResetByAdmin = quizState.resetAt && player.joinedAt < quizState.resetAt;
+    const isResetIdOlder = currentResetId > playerResetId;
 
-    // A) Admin reset the quiz (resetId incremented on server after player joined)
-    const isResetByAdmin = currentResetId > playerResetId;
-
-    // B) Player played a finished game and status is back in lobby (admin reset quiz)
-    const hasFinishedGame = Boolean(player.answers && Object.keys(player.answers).length > 0);
-    const isResetFromFinished = quizState.status === "lobby" && hasFinishedGame;
-
-    if (isResetByAdmin || isResetFromFinished) {
+    if (isResetByAdmin || (isResetIdOlder && quizState.status === "lobby")) {
       setPlayer(null);
+      setName("");
       setIsEditingProfile(false);
-      saveStoredPlayer(null);
+      try {
+        sessionStorage.removeItem("sergej_quiz_player");
+        localStorage.removeItem("sergej_quiz_player");
+      } catch {}
     }
-  }, [quizState.resetId, quizState.status, player]);
+  }, [quizState.resetId, quizState.resetAt, quizState.status, player]);
 
-  // 4. Keep local player score/state updated with server state
+  // 3. Keep local player score/state updated with server state
   useEffect(() => {
     if (player && quizState.players && quizState.players[player.id]) {
       const serverPlayer = quizState.players[player.id];
@@ -238,14 +143,15 @@ export default function StudentHomePage() {
     }
   }, [quizState.status, quizState.countdownStartTime]);
 
-  // Join or Update Profile handler (preserves player ID to prevent duplicates!)
+  // Join or Update Profile handler (preserves player ID to prevent duplicates when editing profile)
   const handleSubmitProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
     setIsSubmitting(true);
-    const playerId = "p_" + getDeviceId();
+    const playerId = player?.id || ("p_" + Math.random().toString(36).substring(2, 9) + "_" + Date.now().toString(36));
     const currentSessionResetId = quizState.resetId || 1;
+    const now = Date.now();
 
     const profileData: Player = {
       ...(player || {}),
@@ -254,8 +160,8 @@ export default function StudentHomePage() {
       avatar: selectedAvatar.emoji,
       score: player?.score || 0,
       totalTimeMs: player?.totalTimeMs || 0,
-      joinedAt: player?.joinedAt || Date.now(),
-      lastSeen: Date.now(),
+      joinedAt: player?.joinedAt || now,
+      lastSeen: now,
       resetId: currentSessionResetId,
       answers: player?.answers || {},
     };
@@ -265,7 +171,9 @@ export default function StudentHomePage() {
       if (serverState?.resetId) {
         profileData.resetId = serverState.resetId;
       }
-      saveStoredPlayer(profileData);
+      try {
+        sessionStorage.setItem("sergej_quiz_player", JSON.stringify(profileData));
+      } catch {}
       setPlayer(profileData);
       if (serverState) {
         setQuizState(serverState);
@@ -315,42 +223,6 @@ export default function StudentHomePage() {
   // Determine current question player answer status
   const currentAnswer = player?.answers?.[quizState.currentQuestionIndex];
   const hasAnsweredCurrent = Boolean(currentAnswer);
-
-  if (isSuperseded) {
-    return (
-      <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
-        <Navbar />
-        <main className="flex-1 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-slate-900/95 border border-slate-800 rounded-3xl p-6 sm:p-8 text-center shadow-2xl">
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 mx-auto flex items-center justify-center mb-4 border border-amber-500/30">
-              <AlertTriangle className="w-8 h-8" />
-            </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white">Stranica je otvorena u drugom tabu</h2>
-            <p className="text-slate-400 text-sm mt-3 leading-relaxed">
-              Kviz je otvoren u novijem prozoru ili tabu na ovom uređaju. Sa jednog uređaja dozvoljen je samo <strong>jedan nalog</strong> u kvizu.
-            </p>
-            <p className="text-slate-500 text-xs mt-2">
-              Ova stranica je automatski odjavljena kako ne bi došlo do dupliranja naloga.
-            </p>
-            <button
-              onClick={() => {
-                localStorage.setItem("sergej_quiz_active_tab", tabId);
-                if (typeof window !== "undefined" && "BroadcastChannel" in window) {
-                  const channel = new BroadcastChannel("sergej_tab_channel");
-                  channel.postMessage({ type: "NEW_TAB_CLAIMED", activeTabId: tabId });
-                  channel.close();
-                }
-                setIsSuperseded(false);
-              }}
-              className="mt-6 w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-sm shadow-lg shadow-cyan-500/25 transition-all active:scale-95"
-            >
-              Aktiviraj kviz u ovom tabu
-            </button>
-          </div>
-        </main>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
