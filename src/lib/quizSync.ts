@@ -5,25 +5,163 @@ import { QUIZ_QUESTIONS } from "@/data/questions";
 
 export const DEFAULT_ROOM_CODE = "sigurnost";
 
-const LOCAL_STORAGE_KEY_PREFIX = "quiz_room_state_";
-const channelMap = new Map<string, BroadcastChannel>();
+// In-memory room store per client session
+const roomStateStore = new Map<string, QuizState>();
+const localSubscribersMap = new Map<string, Set<(state: QuizState) => void>>();
 
-function getLocalState(roomCode: string): QuizState {
-  if (typeof window === "undefined") {
-    return createInitialState(roomCode);
-  }
-  const saved = localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + roomCode);
-  if (saved) {
-    try {
-      return JSON.parse(saved);
-    } catch {
-      // fallback
-    }
-  }
-  return createInitialState(roomCode);
+export function createInitialState(roomCode = DEFAULT_ROOM_CODE): QuizState {
+  return {
+    status: "lobby",
+    currentQuestionIndex: 0,
+    questionStartTime: 0,
+    durationSeconds: 20,
+    roomCode,
+    resetId: 1,
+    updatedAt: Date.now(),
+    players: {},
+    removedPlayers: {},
+  };
 }
 
-const localSubscribersMap = new Map<string, Set<(state: QuizState) => void>>();
+export function areStatesEqual(prev: QuizState | null, next: QuizState | null): boolean {
+  if (!prev || !next) return false;
+  if (prev === next) return true;
+  if (prev.status !== next.status) return false;
+  if (prev.currentQuestionIndex !== next.currentQuestionIndex) return false;
+  if ((prev.resetId || 1) !== (next.resetId || 1)) return false;
+  if (prev.countdownStartTime !== next.countdownStartTime) return false;
+  if (prev.questionStartTime !== next.questionStartTime) return false;
+
+  const prevPlayers = prev.players || {};
+  const nextPlayers = next.players || {};
+  const prevKeys = Object.keys(prevPlayers);
+  const nextKeys = Object.keys(nextPlayers);
+  if (prevKeys.length !== nextKeys.length) return false;
+
+  for (const key of nextKeys) {
+    const p1 = prevPlayers[key];
+    const p2 = nextPlayers[key];
+    if (!p1 || !p2) return false;
+    if (p1.name !== p2.name || p1.avatar !== p2.avatar || p1.score !== p2.score) return false;
+    const a1Count = p1.answers ? Object.keys(p1.answers).length : 0;
+    const a2Count = p2.answers ? Object.keys(p2.answers).length : 0;
+    if (a1Count !== a2Count) return false;
+  }
+
+  return true;
+}
+
+export function mergeQuizStates(current: QuizState | null, incoming: QuizState): QuizState {
+  if (!current) return incoming;
+
+  const currentResetId = current.resetId || 1;
+  const incomingResetId = incoming.resetId || 1;
+
+  // Higher resetId = authoritative reset from admin
+  if (incomingResetId > currentResetId) {
+    return incoming;
+  }
+
+  // Stale resetId from older session = keep current
+  if (incomingResetId < currentResetId) {
+    return current;
+  }
+
+  // Monotonic status progression
+  const statusOrder: Record<string, number> = {
+    lobby: 0,
+    countdown: 1,
+    question: 2,
+    finished: 3,
+  };
+
+  const currentOrder = statusOrder[current.status] ?? 0;
+  const incomingOrder = statusOrder[incoming.status] ?? 0;
+
+  let status = current.status;
+  let currentQuestionIndex = current.currentQuestionIndex;
+  let questionStartTime = current.questionStartTime;
+  let countdownStartTime = current.countdownStartTime;
+
+  if (incomingOrder > currentOrder) {
+    status = incoming.status;
+    currentQuestionIndex = incoming.currentQuestionIndex;
+    questionStartTime = incoming.questionStartTime;
+    countdownStartTime = incoming.countdownStartTime;
+  } else if (incomingOrder === currentOrder) {
+    if (status === "question") {
+      if (incoming.currentQuestionIndex > currentQuestionIndex) {
+        currentQuestionIndex = incoming.currentQuestionIndex;
+        questionStartTime = incoming.questionStartTime;
+      }
+    } else if (status === "countdown") {
+      countdownStartTime = incoming.countdownStartTime || countdownStartTime;
+    }
+  }
+
+  // Merge removed players
+  const mergedRemoved: Record<string, number> = {
+    ...(current.removedPlayers || {}),
+    ...(incoming.removedPlayers || {}),
+  };
+  for (const [id, ts] of Object.entries(incoming.removedPlayers || {})) {
+    mergedRemoved[id] = Math.max(mergedRemoved[id] || 0, ts);
+  }
+
+  // Merge players monotonically
+  const mergedPlayers: Record<string, Player> = { ...(current.players || {}) };
+
+  // Remove players marked as removed unless they re-joined after removal
+  for (const [id, ts] of Object.entries(mergedRemoved)) {
+    const existing = mergedPlayers[id];
+    if (existing && (existing.joinedAt || 0) <= ts) {
+      delete mergedPlayers[id];
+    }
+  }
+
+  // Add / update incoming players
+  for (const [id, incPlayer] of Object.entries(incoming.players || {})) {
+    const removeTs = mergedRemoved[id];
+    if (removeTs && (incPlayer.joinedAt || 0) <= removeTs) {
+      continue;
+    }
+    if (removeTs && (incPlayer.joinedAt || 0) > removeTs) {
+      delete mergedRemoved[id];
+    }
+
+    const existing = mergedPlayers[id];
+    if (!existing) {
+      mergedPlayers[id] = incPlayer;
+    } else {
+      const mergedAnswers = {
+        ...(existing.answers || {}),
+        ...(incPlayer.answers || {}),
+      };
+      mergedPlayers[id] = {
+        ...existing,
+        ...incPlayer,
+        score: Math.max(existing.score || 0, incPlayer.score || 0),
+        totalTimeMs: Math.max(existing.totalTimeMs || 0, incPlayer.totalTimeMs || 0),
+        lastSeen: Math.max(existing.lastSeen || 0, incPlayer.lastSeen || 0),
+        answers: mergedAnswers,
+      };
+    }
+  }
+
+  return {
+    ...current,
+    ...incoming,
+    status,
+    currentQuestionIndex,
+    questionStartTime,
+    countdownStartTime,
+    resetId: currentResetId,
+    resetAt: current.resetAt || incoming.resetAt,
+    players: mergedPlayers,
+    removedPlayers: mergedRemoved,
+    updatedAt: Math.max(current.updatedAt || 0, incoming.updatedAt || 0),
+  };
+}
 
 function notifyLocalSubscribers(roomCode: string, state: QuizState) {
   const subs = localSubscribersMap.get(roomCode);
@@ -38,40 +176,7 @@ function notifyLocalSubscribers(roomCode: string, state: QuizState) {
   }
 }
 
-function saveLocalState(roomCode: string, state: QuizState, broadcast = false) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + roomCode, JSON.stringify(state));
-  notifyLocalSubscribers(roomCode, state);
-  if (broadcast) {
-    const ch = getBroadcastChannel(roomCode);
-    if (ch) {
-      ch.postMessage({ type: "STATE_UPDATE", state });
-    }
-  }
-}
-
-function getBroadcastChannel(roomCode: string): BroadcastChannel | null {
-  if (typeof window === "undefined" || !("BroadcastChannel" in window)) return null;
-  if (!channelMap.has(roomCode)) {
-    channelMap.set(roomCode, new BroadcastChannel("quiz_sync_" + roomCode));
-  }
-  return channelMap.get(roomCode) || null;
-}
-
-export function createInitialState(roomCode = DEFAULT_ROOM_CODE): QuizState {
-  return {
-    status: "lobby",
-    currentQuestionIndex: 0,
-    questionStartTime: 0,
-    durationSeconds: 20,
-    roomCode,
-    resetId: 1,
-    updatedAt: Date.now(),
-    players: {},
-  };
-}
-
-// 1. Subscribe to Live Quiz State (Firebase WebSockets OR Built-in Vercel API Polling)
+// 1. Subscribe to Live Quiz State (Firebase Realtime DB OR Built-in Gossip Sync)
 export function subscribeToQuizState(
   roomCode: string,
   onUpdate: (state: QuizState) => void,
@@ -99,73 +204,75 @@ export function subscribeToQuizState(
     };
   }
 
-  // Mode B: Built-in Next.js Serverless API Polling (Zero setup required!)
+  // Mode B: Built-in Next.js Serverless API with Gossip Sync
   let active = true;
-  let lastKnownState: QuizState | null = null;
+  let lastKnownState: QuizState | null = roomStateStore.get(roomCode) || null;
 
-  function areStatesEqual(prev: QuizState | null, next: QuizState): boolean {
-    if (!prev) return false;
-    if (prev.status !== next.status) return false;
-    if (prev.currentQuestionIndex !== next.currentQuestionIndex) return false;
-    if ((prev.resetId || 1) !== (next.resetId || 1)) return false;
-    if (prev.countdownStartTime !== next.countdownStartTime) return false;
-    if (prev.questionStartTime !== next.questionStartTime) return false;
-
-    const prevPlayers = prev.players || {};
-    const nextPlayers = next.players || {};
-    const prevKeys = Object.keys(prevPlayers);
-    const nextKeys = Object.keys(nextPlayers);
-    if (prevKeys.length !== nextKeys.length) return false;
-
-    for (const key of nextKeys) {
-      const p1 = prevPlayers[key];
-      const p2 = nextPlayers[key];
-      if (!p1 || !p2) return false;
-      if (p1.name !== p2.name || p1.avatar !== p2.avatar || p1.score !== p2.score) return false;
-      const a1Count = p1.answers ? Object.keys(p1.answers).length : 0;
-      const a2Count = p2.answers ? Object.keys(p2.answers).length : 0;
-      if (a1Count !== a2Count) return false;
-    }
-
-    return true;
+  if (lastKnownState) {
+    onUpdate(lastKnownState);
   }
+
+  const listener = (state: QuizState) => {
+    if (!active) return;
+    if (!areStatesEqual(lastKnownState, state)) {
+      lastKnownState = state;
+      onUpdate(state);
+    }
+  };
 
   if (!localSubscribersMap.has(roomCode)) {
     localSubscribersMap.set(roomCode, new Set());
   }
-  localSubscribersMap.get(roomCode)!.add(onUpdate);
+  localSubscribersMap.get(roomCode)!.add(listener);
 
   const fetchApiState = async () => {
+    if (!active) return;
     try {
       const pid = getPlayerId ? getPlayerId() : undefined;
-      const url = pid
-        ? `/api/quiz?room=${encodeURIComponent(roomCode)}&player=${encodeURIComponent(pid)}`
-        : `/api/quiz?room=${encodeURIComponent(roomCode)}`;
-      const res = await fetch(url);
+      const currentState = roomStateStore.get(roomCode) || lastKnownState;
+
+      const res = await fetch("/api/quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          room: roomCode,
+          action: "sync",
+          data: {
+            playerId: pid,
+            resetId: currentState?.resetId || 1,
+            resetAt: currentState?.resetAt,
+            status: currentState?.status || "lobby",
+            currentQuestionIndex: currentState?.currentQuestionIndex || 0,
+            questionStartTime: currentState?.questionStartTime || 0,
+            countdownStartTime: currentState?.countdownStartTime,
+            players: currentState?.players || {},
+            removedPlayers: currentState?.removedPlayers || {},
+          },
+        }),
+      });
+
       if (res.ok && active) {
-        const data: QuizState = await res.json();
+        const incoming: QuizState = await res.json();
+        const base = roomStateStore.get(roomCode) || lastKnownState;
+        const merged = mergeQuizStates(base, incoming);
 
-        if (areStatesEqual(lastKnownState, data)) {
-          return;
-        }
-
-        lastKnownState = data;
-        onUpdate(data);
+        roomStateStore.set(roomCode, merged);
+        notifyLocalSubscribers(roomCode, merged);
       }
     } catch {
-      // Ignore network hiccup, next poll in 1000ms will retry
+      // Retry automatically on next poll tick
     }
   };
 
   // Immediate fetch
   fetchApiState();
 
-  // Poll every 1000ms for smooth live updates across all phones
+  // Poll every 1000ms
   const pollInterval = setInterval(fetchApiState, 1000);
 
   return () => {
     active = false;
-    localSubscribersMap.get(roomCode)?.delete(onUpdate);
+    localSubscribersMap.get(roomCode)?.delete(listener);
     clearInterval(pollInterval);
   };
 }
@@ -196,8 +303,31 @@ export async function joinPlayer(roomCode: string, player: Player): Promise<Quiz
     return null;
   }
 
-  // Use Built-in API
-  return await sendApiAction(roomCode, "join", { player });
+  // Use Built-in API with optimistic update
+  const currentState = roomStateStore.get(roomCode) || null;
+  const localWithPlayer: QuizState = {
+    ...(currentState || createInitialState(roomCode)),
+    players: {
+      ...(currentState?.players || {}),
+      [player.id]: player,
+    },
+    removedPlayers: {
+      ...(currentState?.removedPlayers || {}),
+    },
+  };
+  delete localWithPlayer.removedPlayers?.[player.id];
+
+  roomStateStore.set(roomCode, localWithPlayer);
+  notifyLocalSubscribers(roomCode, localWithPlayer);
+
+  const serverState = await sendApiAction(roomCode, "join", { player });
+  if (serverState) {
+    const merged = mergeQuizStates(roomStateStore.get(roomCode) || null, serverState);
+    roomStateStore.set(roomCode, merged);
+    notifyLocalSubscribers(roomCode, merged);
+    return merged;
+  }
+  return localWithPlayer;
 }
 
 // 2b. Player leaves / changes profile
@@ -208,7 +338,21 @@ export async function leavePlayer(roomCode: string, playerId: string): Promise<v
     return;
   }
 
-  // Use Built-in API
+  const now = Date.now();
+  const currentState = roomStateStore.get(roomCode) || null;
+  if (currentState) {
+    const updatedPlayers = { ...(currentState.players || {}) };
+    delete updatedPlayers[playerId];
+    const updatedRemoved = { ...(currentState.removedPlayers || {}), [playerId]: now };
+    const updatedState: QuizState = {
+      ...currentState,
+      players: updatedPlayers,
+      removedPlayers: updatedRemoved,
+    };
+    roomStateStore.set(roomCode, updatedState);
+    notifyLocalSubscribers(roomCode, updatedState);
+  }
+
   await sendApiAction(roomCode, "leave", { playerId });
 }
 
@@ -249,7 +393,18 @@ export async function startQuizCountdown(roomCode: string): Promise<void> {
     return;
   }
 
-  // Use Built-in API
+  const currentState = roomStateStore.get(roomCode) || null;
+  if (currentState) {
+    const updated: QuizState = {
+      ...currentState,
+      status: "countdown",
+      countdownStartTime: now,
+      updatedAt: now,
+    };
+    roomStateStore.set(roomCode, updated);
+    notifyLocalSubscribers(roomCode, updated);
+  }
+
   await sendApiAction(roomCode, "start_countdown");
 }
 
@@ -267,7 +422,19 @@ export async function setQuestion(roomCode: string, questionIndex: number): Prom
     return;
   }
 
-  // Use Built-in API
+  const currentState = roomStateStore.get(roomCode) || null;
+  if (currentState) {
+    const updated: QuizState = {
+      ...currentState,
+      status: "question",
+      currentQuestionIndex: questionIndex,
+      questionStartTime: now,
+      updatedAt: now,
+    };
+    roomStateStore.set(roomCode, updated);
+    notifyLocalSubscribers(roomCode, updated);
+  }
+
   await sendApiAction(roomCode, "set_question", { questionIndex });
 }
 
@@ -283,7 +450,17 @@ export async function finishQuiz(roomCode: string): Promise<void> {
     return;
   }
 
-  // Use Built-in API
+  const currentState = roomStateStore.get(roomCode) || null;
+  if (currentState) {
+    const updated: QuizState = {
+      ...currentState,
+      status: "finished",
+      updatedAt: now,
+    };
+    roomStateStore.set(roomCode, updated);
+    notifyLocalSubscribers(roomCode, updated);
+  }
+
   await sendApiAction(roomCode, "finish");
 }
 
@@ -305,8 +482,24 @@ export async function resetQuiz(roomCode: string): Promise<void> {
     return;
   }
 
-  // Use Built-in API
-  await sendApiAction(roomCode, "reset");
+  const currentState = roomStateStore.get(roomCode) || null;
+  const newResetId = (currentState?.resetId || 1) + 1;
+  const resetState: QuizState = {
+    ...(currentState || createInitialState(roomCode)),
+    status: "lobby",
+    currentQuestionIndex: 0,
+    questionStartTime: 0,
+    countdownStartTime: undefined,
+    players: {},
+    removedPlayers: {},
+    resetAt: now,
+    resetId: newResetId,
+    updatedAt: now,
+  };
+  roomStateStore.set(roomCode, resetState);
+  notifyLocalSubscribers(roomCode, resetState);
+
+  await sendApiAction(roomCode, "reset", { resetId: newResetId });
 }
 
 // 7. Submit Answer by player
@@ -348,6 +541,29 @@ export async function submitAnswer(
       }
     }
     return { isCorrect };
+  }
+
+  // Update local roomStateStore optimistically
+  const currentState = roomStateStore.get(roomCode) || null;
+  if (currentState && currentState.players?.[playerId]) {
+    const p = currentState.players[playerId];
+    const answers = { ...(p.answers || {}), [questionIndex]: answer };
+    const newScore = (p.score || 0) + (isCorrect ? 1 : 0);
+    const newTotalTime = (p.totalTimeMs || 0) + timeTakenMs;
+    const updatedState: QuizState = {
+      ...currentState,
+      players: {
+        ...currentState.players,
+        [playerId]: {
+          ...p,
+          score: newScore,
+          totalTimeMs: newTotalTime,
+          answers,
+        },
+      },
+    };
+    roomStateStore.set(roomCode, updatedState);
+    notifyLocalSubscribers(roomCode, updatedState);
   }
 
   // Use Built-in API

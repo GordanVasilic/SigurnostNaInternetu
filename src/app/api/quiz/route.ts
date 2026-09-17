@@ -31,7 +31,7 @@ function readRoomsFromDisk(): Record<string, QuizState> {
       }
     }
   } catch {
-    // Ignore, memory is authoritative
+    // Memory is authoritative fallback
   }
   return {};
 }
@@ -67,26 +67,30 @@ function getOrCreateRoom(roomCode = "sigurnost", activePlayerId?: string | null)
         resetId: 1,
         updatedAt: Date.now(),
         players: {},
+        removedPlayers: {},
       };
       writeRoomsToDisk(rooms);
     }
   }
 
   const state = rooms[roomCode];
+  if (!state.players) state.players = {};
+  if (!state.removedPlayers) state.removedPlayers = {};
   const now = Date.now();
 
-  // If this request is from an active player, refresh their lastSeen right away in memory!
-  if (activePlayerId && state.players?.[activePlayerId]) {
+  // If this request is from an active player, refresh their lastSeen right away in memory
+  if (activePlayerId && state.players[activePlayerId]) {
     state.players[activePlayerId].lastSeen = now;
   }
 
-  // Prune only truly inactive / abandoned connections in lobby (no poll for > 60s)
+  // Prune only truly inactive / abandoned connections in lobby (> 120s with no sync)
   if (state.status === "lobby" && state.players) {
     let pruned = false;
     for (const [id, p] of Object.entries(state.players)) {
       if (activePlayerId && id === activePlayerId) continue;
       const lastActive = p.lastSeen || p.joinedAt || now;
-      if (now - lastActive > 60000) {
+      if (now - lastActive > 120000) {
+        state.removedPlayers[id] = now;
         delete state.players[id];
         pruned = true;
       }
@@ -146,7 +150,13 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { room = "sigurnost", action, data } = body;
-    const targetPlayerId = action === "join" ? data?.player?.id : action === "leave" ? data?.playerId : undefined;
+    const targetPlayerId =
+      action === "join"
+        ? data?.player?.id
+        : action === "leave" || action === "sync"
+        ? data?.playerId
+        : undefined;
+
     const state = getOrCreateRoom(room, targetPlayerId);
     const now = Date.now();
 
@@ -154,6 +164,9 @@ export async function POST(req: NextRequest) {
       case "join": {
         const player: Player = data.player;
         if (!state.players) state.players = {};
+        if (!state.removedPlayers) state.removedPlayers = {};
+        delete state.removedPlayers[player.id];
+
         const currentResetId = state.resetId || 1;
         player.resetId = currentResetId;
 
@@ -171,13 +184,98 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case "sync": {
+        const clientSync = data || {};
+        const incomingResetId = clientSync.resetId || 1;
+        const currentResetId = state.resetId || 1;
+
+        if (incomingResetId > currentResetId) {
+          state.resetId = incomingResetId;
+          state.resetAt = clientSync.resetAt || now;
+          state.players = clientSync.players || {};
+          state.removedPlayers = clientSync.removedPlayers || {};
+          state.status = clientSync.status || "lobby";
+          state.currentQuestionIndex = clientSync.currentQuestionIndex || 0;
+          state.questionStartTime = clientSync.questionStartTime || 0;
+          state.countdownStartTime = clientSync.countdownStartTime;
+        } else if (incomingResetId === currentResetId) {
+          if (!state.players) state.players = {};
+          if (!state.removedPlayers) state.removedPlayers = {};
+
+          if (clientSync.removedPlayers) {
+            for (const [id, ts] of Object.entries(clientSync.removedPlayers as Record<string, number>)) {
+              state.removedPlayers[id] = Math.max(state.removedPlayers[id] || 0, ts);
+              delete state.players[id];
+            }
+          }
+
+          if (clientSync.players) {
+            for (const [id, p] of Object.entries(clientSync.players as Record<string, Player>)) {
+              const removeTs = state.removedPlayers[id];
+              if (removeTs && (p.joinedAt || 0) <= removeTs) {
+                continue;
+              }
+              if (removeTs && (p.joinedAt || 0) > removeTs) {
+                delete state.removedPlayers[id];
+              }
+
+              const existing = state.players[id];
+              if (!existing) {
+                state.players[id] = p;
+              } else {
+                const mergedAnswers = {
+                  ...(existing.answers || {}),
+                  ...(p.answers || {}),
+                };
+                state.players[id] = {
+                  ...existing,
+                  ...p,
+                  score: Math.max(existing.score || 0, p.score || 0),
+                  totalTimeMs: Math.max(existing.totalTimeMs || 0, p.totalTimeMs || 0),
+                  lastSeen: Math.max(existing.lastSeen || 0, p.lastSeen || 0, id === clientSync.playerId ? now : 0),
+                  answers: mergedAnswers,
+                };
+              }
+            }
+          }
+
+          if (clientSync.status) {
+            const order: Record<string, number> = { lobby: 0, countdown: 1, question: 2, finished: 3 };
+            const incomingOrder = order[clientSync.status] || 0;
+            const currentOrder = order[state.status] || 0;
+
+            if (incomingOrder > currentOrder) {
+              state.status = clientSync.status;
+              state.currentQuestionIndex = clientSync.currentQuestionIndex || 0;
+              state.questionStartTime = clientSync.questionStartTime || now;
+              state.countdownStartTime = clientSync.countdownStartTime;
+            } else if (incomingOrder === currentOrder && state.status === "question") {
+              if ((clientSync.currentQuestionIndex || 0) > (state.currentQuestionIndex || 0)) {
+                state.currentQuestionIndex = clientSync.currentQuestionIndex || 0;
+                state.questionStartTime = clientSync.questionStartTime || now;
+              }
+            }
+          }
+        }
+
+        if (clientSync.playerId && state.players?.[clientSync.playerId]) {
+          state.players[clientSync.playerId].lastSeen = now;
+        }
+
+        state.updatedAt = now;
+        rooms[room] = state;
+        break;
+      }
+
       case "leave": {
         const playerId = data?.playerId;
         if (playerId) {
-          if (state.players && state.players[playerId]) {
+          if (!state.removedPlayers) state.removedPlayers = {};
+          state.removedPlayers[playerId] = now;
+          if (state.players) {
             delete state.players[playerId];
           }
-          if (rooms[room]?.players?.[playerId]) {
+          if (rooms[room]?.players) {
             delete rooms[room].players[playerId];
           }
           state.updatedAt = now;
@@ -243,12 +341,13 @@ export async function POST(req: NextRequest) {
       }
 
       case "reset": {
-        const newResetId = (state.resetId || 1) + 1;
+        const newResetId = Math.max((state.resetId || 1) + 1, data?.resetId || 0);
         state.status = "lobby";
         state.currentQuestionIndex = 0;
         state.questionStartTime = 0;
         state.countdownStartTime = undefined;
         state.players = {}; // Always clear players on reset so everyone re-joins fresh
+        state.removedPlayers = {};
         state.resetAt = now;
         state.resetId = newResetId;
         state.updatedAt = now;
@@ -261,7 +360,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Unknown action" }, { status: 400 });
     }
 
-    return NextResponse.json(state);
+    return NextResponse.json(state, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      },
+    });
   } catch (err) {
     console.error("Greška u /api/quiz:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

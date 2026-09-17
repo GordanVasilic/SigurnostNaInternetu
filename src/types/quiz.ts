@@ -31,6 +31,7 @@ export interface QuizState {
   resetAt?: number;
   resetId?: number;
   players?: Record<string, Player>;
+  removedPlayers?: Record<string, number>;
 }
 
 export interface QuestionStat {

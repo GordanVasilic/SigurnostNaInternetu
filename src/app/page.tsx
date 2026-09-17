@@ -97,10 +97,21 @@ export default function StudentHomePage() {
 
   // 3. Keep local player score/state updated with server state
   useEffect(() => {
-    if (player && quizState.players && quizState.players[player.id]) {
-      const serverPlayer = quizState.players[player.id];
-      setPlayer((prev) => (prev ? { ...prev, ...serverPlayer } : serverPlayer));
-    }
+    if (!player || !quizState.players || !quizState.players[player.id]) return;
+    const sp = quizState.players[player.id];
+    setPlayer((prev) => {
+      if (!prev) return sp;
+      if (
+        prev.name === sp.name &&
+        prev.avatar === sp.avatar &&
+        prev.score === sp.score &&
+        prev.totalTimeMs === sp.totalTimeMs &&
+        Object.keys(prev.answers || {}).length === Object.keys(sp.answers || {}).length
+      ) {
+        return prev;
+      }
+      return { ...prev, ...sp };
+    });
   }, [quizState.players, player?.id]);
 
 
