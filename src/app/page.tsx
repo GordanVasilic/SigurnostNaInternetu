@@ -16,7 +16,7 @@ import {
   createInitialState,
 } from "@/lib/quizSync";
 import { QuizState, Player } from "@/types/quiz";
-import { Shield, Sparkles, Users, Lock, ArrowRight, Hourglass, Check, X } from "lucide-react";
+import { Shield, Sparkles, Users, Lock, ArrowRight, Hourglass, Check, X, AlertTriangle } from "lucide-react";
 import { playStartFanfare } from "@/lib/sounds";
 
 export default function StudentHomePage() {
@@ -27,6 +27,8 @@ export default function StudentHomePage() {
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarOption>(AVATARS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [countdownNum, setCountdownNum] = useState<number | null>(null);
+  const [showExitConfirmModal, setShowExitConfirmModal] = useState(false);
+  const [showRefreshedNoticeModal, setShowRefreshedNoticeModal] = useState(false);
   const lastJoinAttemptRef = useRef<number>(Date.now());
 
   const playerRef = useRef(player);
@@ -34,15 +36,35 @@ export default function StudentHomePage() {
   const quizStateRef = useRef(quizState);
   quizStateRef.current = quizState;
 
-  // On initial mount of a tab: clean any old cached data so user always starts fresh!
+  // On initial mount: check if user reloaded/closed while quiz was active, and clean old cache
   useEffect(() => {
     try {
+      const wasInActiveQuiz = sessionStorage.getItem("sergej_was_in_active_quiz");
+      if (wasInActiveQuiz === "true") {
+        setShowRefreshedNoticeModal(true);
+      }
       localStorage.removeItem("sergej_quiz_player");
       localStorage.removeItem("sergej_quiz_device_id");
       localStorage.removeItem("sergej_quiz_active_tab");
       sessionStorage.removeItem("sergej_quiz_player");
+      sessionStorage.removeItem("sergej_was_in_active_quiz");
     } catch {}
   }, []);
+
+  // Track if current player is in an active game session (countdown or question)
+  useEffect(() => {
+    const isQuizActive =
+      quizState.status === "countdown" || quizState.status === "question";
+    if (player && isQuizActive) {
+      try {
+        sessionStorage.setItem("sergej_was_in_active_quiz", "true");
+      } catch {}
+    } else if (quizState.status === "finished" || quizState.status === "lobby") {
+      try {
+        sessionStorage.removeItem("sergej_was_in_active_quiz");
+      } catch {}
+    }
+  }, [player, quizState.status]);
 
   // When closing, refreshing, or navigating away:
   useEffect(() => {
@@ -51,11 +73,11 @@ export default function StudentHomePage() {
         quizStateRef.current.status === "countdown" ||
         quizStateRef.current.status === "question";
 
-      // If quiz has started, warn user that leaving will exit the quiz!
+      // If quiz has started, trigger the standard generic browser confirmation
       if (playerRef.current && isQuizActive) {
         e.preventDefault();
-        e.returnValue = "Kviz je u toku! Ako zatvorite ili osvježite stranicu, izaći ćete iz kviza.";
-        return e.returnValue;
+        e.returnValue = "";
+        return "";
       }
 
       // If in lobby, clean up player
@@ -84,12 +106,9 @@ export default function StudentHomePage() {
         quizStateRef.current.status === "question";
 
       if (playerRef.current && isQuizActive) {
-        const confirmLeave = window.confirm(
-          "Kviz je u toku! Ako napustite stranicu, izaći ćete iz kviza. Da li ste sigurni?"
-        );
-        if (!confirmLeave) {
-          window.history.pushState(null, "", window.location.href);
-        }
+        // Prevent immediate navigation and show custom styled modal
+        window.history.pushState(null, "", window.location.href);
+        setShowExitConfirmModal(true);
       }
     };
 
@@ -451,6 +470,76 @@ export default function StudentHomePage() {
         {/* ================= STATE 5: FINISHED / LEADERBOARD ================= */}
         {quizState.status === "finished" && (
           <Leaderboard players={quizState.players || {}} />
+        )}
+
+        {/* ================= MODAL 1: EXIT CONFIRMATION ================= */}
+        {showExitConfirmModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="w-full max-w-md bg-slate-900 border-2 border-amber-500/50 rounded-3xl p-6 sm:p-7 shadow-2xl text-center animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="w-8 h-8 text-amber-400 stroke-[2.5]" />
+              </div>
+
+              <h3 className="text-2xl font-black text-white">Napuštanje kviza</h3>
+              <p className="text-slate-300 text-sm sm:text-base mt-2 leading-relaxed">
+                Kviz je u toku! Ako zatvorite, osvježite stranicu ili izađete, <strong className="text-rose-400 font-bold">automatski napuštate kviz</strong> i vaš rezultat se prekida.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowExitConfirmModal(false)}
+                  className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-base shadow-lg shadow-cyan-500/20 transition-all active:scale-98"
+                >
+                  Ostani u kvizu ✓
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowExitConfirmModal(false);
+                    if (player) {
+                      sendBeaconLeave(DEFAULT_ROOM_CODE, player.id);
+                      setPlayer(null);
+                      setName("");
+                    }
+                  }}
+                  className="py-3.5 px-5 rounded-2xl bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-700/50 font-bold text-sm transition-all active:scale-98"
+                >
+                  Izađi iz kviza
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= MODAL 2: NOTICE AFTER REFRESH/CLOSE ================= */}
+        {showRefreshedNoticeModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="w-full max-w-md bg-slate-900 border-2 border-rose-500/50 rounded-3xl p-6 sm:p-7 shadow-2xl text-center animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="w-8 h-8 text-rose-400 stroke-[2.5]" />
+              </div>
+
+              <h3 className="text-2xl font-black text-white">Izašli ste iz kviza</h3>
+              <p className="text-slate-300 text-sm sm:text-base mt-2 leading-relaxed">
+                Stranica je bila zatvorena ili osvježena tokom trajanja kviza, pa ste automatski odjavljeni iz trenutne igre.
+              </p>
+              <p className="text-slate-400 text-xs mt-2">
+                Ako kviz još traje, možete unijeti svoje ime i ponovo se pridružiti.
+              </p>
+
+              <div className="mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowRefreshedNoticeModal(false)}
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-base shadow-lg shadow-cyan-500/20 transition-all active:scale-98"
+                >
+                  U redu, razumijem
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </main>
     </div>

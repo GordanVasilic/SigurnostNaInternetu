@@ -63,8 +63,8 @@ export default function AdminPage() {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (quizState.status === "countdown" || quizState.status === "question") {
         e.preventDefault();
-        e.returnValue = "Kviz je u toku na projektoru! Ako osvježite ili zatvorite stranicu, prekinućete prikaz.";
-        return e.returnValue;
+        e.returnValue = "";
+        return "";
       }
     };
 
