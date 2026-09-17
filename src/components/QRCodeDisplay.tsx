@@ -10,6 +10,7 @@ import {
   Minimize2,
   Download,
   Share2,
+  Printer,
   X,
   ExternalLink,
 } from "lucide-react";
@@ -23,6 +24,7 @@ export function QRCodeDisplay({ url, size = 260 }: QRCodeDisplayProps) {
   const [targetUrl, setTargetUrl] = useState(url || "");
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [largeQrDataUrl, setLargeQrDataUrl] = useState<string>("");
+  const [printQrDataUrl, setPrintQrDataUrl] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [shareFeedback, setShareFeedback] = useState("");
@@ -61,6 +63,18 @@ export function QRCodeDisplay({ url, size = 260 }: QRCodeDisplayProps) {
     })
       .then((dataUri) => setLargeQrDataUrl(dataUri))
       .catch((err) => console.error("Greška pri kreiranju velikog QR koda:", err));
+
+    // Generate ultra high-resolution QR code specifically for full-page A4 printing (1200px)
+    QRCode.toDataURL(targetUrl, {
+      width: 1200,
+      margin: 2,
+      color: {
+        dark: "#000000",
+        light: "#ffffff",
+      },
+    })
+      .then((dataUri) => setPrintQrDataUrl(dataUri))
+      .catch((err) => console.error("Greška pri kreiranju print QR koda:", err));
   }, [targetUrl, size]);
 
   // Handle ESC key to close fullscreen
@@ -92,6 +106,182 @@ export function QRCodeDisplay({ url, size = 260 }: QRCodeDisplayProps) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handlePrint = () => {
+    let printFrame = document.getElementById("qr-print-frame") as HTMLIFrameElement | null;
+    if (!printFrame) {
+      printFrame = document.createElement("iframe");
+      printFrame.id = "qr-print-frame";
+      printFrame.style.position = "fixed";
+      printFrame.style.right = "0";
+      printFrame.style.bottom = "0";
+      printFrame.style.width = "0";
+      printFrame.style.height = "0";
+      printFrame.style.border = "0";
+      printFrame.style.opacity = "0";
+      printFrame.style.pointerEvents = "none";
+      document.body.appendChild(printFrame);
+    }
+
+    const frameDoc = printFrame.contentWindow?.document || printFrame.contentDocument;
+    if (!frameDoc || !printFrame.contentWindow) {
+      window.print();
+      return;
+    }
+
+    const imgSrc = printQrDataUrl || largeQrDataUrl || qrDataUrl;
+
+    frameDoc.open();
+    frameDoc.write(`
+      <!DOCTYPE html>
+      <html lang="sr">
+        <head>
+          <meta charset="utf-8" />
+          <title>QR Kod - Sigurnost na Internetu Kviz</title>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 1cm;
+            }
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+            }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+              color: #0f172a;
+              background: #ffffff;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: space-between;
+              height: 100vh;
+              text-align: center;
+              padding: 0.5cm 0;
+            }
+            .header {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 6px;
+            }
+            .badge {
+              display: inline-block;
+              font-size: 13pt;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 2px;
+              color: #0284c7;
+              border: 2px solid #0284c7;
+              padding: 4px 18px;
+              border-radius: 9999px;
+            }
+            h1 {
+              font-size: 32pt;
+              font-weight: 900;
+              color: #0f172a;
+              letter-spacing: -0.5px;
+              margin-top: 6px;
+            }
+            p.sub {
+              font-size: 16pt;
+              font-weight: 600;
+              color: #475569;
+            }
+            .qr-wrapper {
+              flex: 1;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              margin: 0.6cm 0;
+            }
+            .qr-box {
+              padding: 20px;
+              border: 8px solid #0284c7;
+              border-radius: 32px;
+              background: #ffffff;
+              box-shadow: 0 4px 25px rgba(0, 0, 0, 0.08);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            img.qr-img {
+              width: 15cm;
+              height: 15cm;
+              max-width: 82vw;
+              max-height: 54vh;
+              object-fit: contain;
+              display: block;
+            }
+            .footer {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 8px;
+            }
+            .url-badge {
+              font-size: 16pt;
+              font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+              font-weight: 800;
+              color: #0369a1;
+              background: #f0f9ff;
+              padding: 10px 24px;
+              border-radius: 12px;
+              border: 2px dashed #0284c7;
+              max-width: 95%;
+              word-break: break-all;
+            }
+            .instructions {
+              font-size: 15pt;
+              font-weight: 700;
+              color: #1e293b;
+            }
+            .instructions-sub {
+              font-size: 12pt;
+              font-weight: 500;
+              color: #64748b;
+            }
+            @media print {
+              body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="badge">🛡️ Sajber Bezbjednost • Edukativni Kviz</div>
+            <h1>Sigurnost na Internetu</h1>
+            <p class="sub">Skeniraj kamerom telefona i pridruži se kvizu!</p>
+          </div>
+
+          <div class="qr-wrapper">
+            <div class="qr-box">
+              <img class="qr-img" src="${imgSrc}" alt="QR Kod za Kviz" />
+            </div>
+          </div>
+
+          <div class="footer">
+            <div class="url-badge">${targetUrl}</div>
+            <p class="instructions">📱 Otvori kameru na telefonu i usmjeri je prema QR kodu</p>
+            <p class="instructions-sub">Nije potrebna instalacija aplikacije • Kviz radi u svim browserima</p>
+          </div>
+        </body>
+      </html>
+    `);
+    frameDoc.close();
+
+    setTimeout(() => {
+      try {
+        printFrame?.contentWindow?.focus();
+        printFrame?.contentWindow?.print();
+      } catch {
+        window.print();
+      }
+    }, 250);
   };
 
   const handleShare = async () => {
@@ -164,13 +354,13 @@ export function QRCodeDisplay({ url, size = 260 }: QRCodeDisplayProps) {
           </div>
         </div>
 
-        {/* Action Buttons: Preuzmi & Podijeli */}
+        {/* Action Buttons: Preuzmi sliku & Odštampaj QR */}
         <div className="grid grid-cols-2 gap-2 w-full mt-3.5">
           <button
             type="button"
             onClick={handleDownload}
             disabled={!qrDataUrl}
-            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-xs font-bold text-slate-200 border border-slate-700 transition-all"
+            className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-xs font-bold text-slate-200 border border-slate-700 transition-all disabled:opacity-50"
             title="Preuzmi sliku QR koda kao PNG"
           >
             <Download className="w-3.5 h-3.5 text-cyan-400" />
@@ -179,14 +369,26 @@ export function QRCodeDisplay({ url, size = 260 }: QRCodeDisplayProps) {
 
           <button
             type="button"
-            onClick={handleShare}
-            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 active:scale-95 text-xs font-bold text-slate-950 transition-all shadow-md shadow-cyan-500/20"
-            title="Pošalji link u Viber/WhatsApp grupu"
+            onClick={handlePrint}
+            disabled={!qrDataUrl}
+            className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-xs font-bold text-emerald-300 hover:text-emerald-200 border border-emerald-500/40 hover:border-emerald-500/80 transition-all shadow-sm disabled:opacity-50"
+            title="Odštampaj QR kod preko cijele A4 stranice"
           >
-            <Share2 className="w-3.5 h-3.5 text-slate-950" />
-            <span>Podijeli u grupu</span>
+            <Printer className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Odštampaj QR</span>
           </button>
         </div>
+
+        {/* Share Button (Full width) */}
+        <button
+          type="button"
+          onClick={handleShare}
+          className="w-full mt-2 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 active:scale-95 text-xs font-black text-slate-950 transition-all shadow-md shadow-cyan-500/20"
+          title="Pošalji link u Viber/WhatsApp grupu"
+        >
+          <Share2 className="w-3.5 h-3.5 text-slate-950" />
+          <span>Podijeli link u grupu</span>
+        </button>
 
         {/* Share Feedback Notice */}
         {shareFeedback && (
@@ -286,7 +488,16 @@ export function QRCodeDisplay({ url, size = 260 }: QRCodeDisplayProps) {
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs sm:text-sm font-bold border border-slate-700 transition-all active:scale-95"
             >
               <Download className="w-4 h-4 text-cyan-400" />
-              <span>Preuzmi sliku QR koda</span>
+              <span>Preuzmi sliku</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 hover:text-emerald-200 text-xs sm:text-sm font-bold border border-emerald-500/40 hover:border-emerald-500 transition-all active:scale-95 shadow-lg shadow-emerald-950/40"
+            >
+              <Printer className="w-4 h-4 text-emerald-400" />
+              <span>Odštampaj QR kod</span>
             </button>
 
             <button
