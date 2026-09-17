@@ -1,0 +1,132 @@
+const fs = require("fs");
+const path = require("path");
+const sharp = require("sharp");
+
+const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="100%" stop-color="#030712" />
+    </linearGradient>
+
+    <!-- Shield Border Gradient -->
+    <linearGradient id="shieldBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#06b6d4" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+
+    <!-- Shield Fill Gradient -->
+    <linearGradient id="shieldFill" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0e2a47" />
+      <stop offset="100%" stop-color="#06182c" />
+    </linearGradient>
+
+    <!-- Lock Body Gradient (Golden Cyber) -->
+    <linearGradient id="lockBody" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+
+    <!-- Glow Filter -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Base Rounded Background for Tab Contrast -->
+  <rect width="512" height="512" rx="120" fill="url(#bgGrad)" />
+  <rect width="504" height="504" x="4" y="4" rx="116" fill="none" stroke="#0ea5e9" stroke-width="6" stroke-opacity="0.4" />
+
+  <!-- Outer Cyber Shield Glow -->
+  <path d="M256 56 L424 122 C424 290 354 394 256 456 C158 394 88 290 88 122 Z"
+        fill="none" stroke="url(#shieldBorder)" stroke-width="26" stroke-linejoin="round" filter="url(#glow)" opacity="0.5" />
+
+  <!-- Shield Body -->
+  <path d="M256 56 L424 122 C424 290 354 394 256 456 C158 394 88 290 88 122 Z"
+        fill="url(#shieldFill)" stroke="url(#shieldBorder)" stroke-width="20" stroke-linejoin="round" />
+
+  <!-- Cyber Network Nodes -->
+  <path d="M256 82 L256 150 M165 160 L218 192 M347 160 L294 192"
+        stroke="#06b6d4" stroke-width="8" stroke-linecap="round" opacity="0.6" />
+  <circle cx="256" cy="150" r="9" fill="#38bdf8" />
+  <circle cx="218" cy="192" r="9" fill="#38bdf8" />
+  <circle cx="294" cy="192" r="9" fill="#38bdf8" />
+
+  <!-- Padlock Shackle -->
+  <path d="M202 264 V206 C202 176 226 152 256 152 C286 152 310 176 310 206 V264"
+        fill="none" stroke="#f0f9ff" stroke-width="30" stroke-linecap="round" />
+
+  <!-- Padlock Body -->
+  <rect x="172" y="248" width="168" height="136" rx="30"
+        fill="url(#lockBody)" stroke="#fef3c7" stroke-width="8" />
+
+  <!-- Keyhole -->
+  <circle cx="256" cy="300" r="16" fill="#0f172a" />
+  <polygon points="248,300 264,300 268,344 244,344" fill="#0f172a" />
+
+  <!-- Sparkle Highlight -->
+  <circle cx="200" cy="274" r="6" fill="#ffffff" opacity="0.9" />
+</svg>`;
+
+async function generate() {
+  const projectRoot = path.resolve(__dirname, "..");
+
+  if (!fs.existsSync(path.join(projectRoot, "public"))) {
+    fs.mkdirSync(path.join(projectRoot, "public"), { recursive: true });
+  }
+
+  // 1. Write icon.svg to src/app and public
+  fs.writeFileSync(path.join(projectRoot, "src/app/icon.svg"), svgIcon);
+  fs.writeFileSync(path.join(projectRoot, "public/icon.svg"), svgIcon);
+  fs.writeFileSync(path.join(projectRoot, "public/favicon.svg"), svgIcon);
+  console.log("✓ Wrote icon.svg to src/app and public");
+
+  // 2. Generate PNGs using Sharp
+  const svgBuffer = Buffer.from(svgIcon);
+
+  // 32x32 PNG (for favicon.ico / icon.png)
+  const png32 = await sharp(svgBuffer).resize(32, 32).png().toBuffer();
+  fs.writeFileSync(path.join(projectRoot, "src/app/icon.png"), png32);
+  fs.writeFileSync(path.join(projectRoot, "public/icon.png"), png32);
+
+  // 180x180 PNG (for Apple Touch Icon)
+  const png180 = await sharp(svgBuffer).resize(180, 180).png().toBuffer();
+  fs.writeFileSync(path.join(projectRoot, "src/app/apple-icon.png"), png180);
+  fs.writeFileSync(path.join(projectRoot, "public/apple-touch-icon.png"), png180);
+
+  // 192x192 and 512x512 PNGs (for Android / PWA)
+  const png192 = await sharp(svgBuffer).resize(192, 192).png().toBuffer();
+  fs.writeFileSync(path.join(projectRoot, "public/icon-192.png"), png192);
+
+  const png512 = await sharp(svgBuffer).resize(512, 512).png().toBuffer();
+  fs.writeFileSync(path.join(projectRoot, "public/icon-512.png"), png512);
+
+  // 3. Create valid ICO file embedding 32x32 PNG
+  // ICO header: 6 bytes
+  const icoHeader = Buffer.from([0, 0, 1, 0, 1, 0]);
+  // ICO directory entry: 16 bytes
+  const icoDirEntry = Buffer.alloc(16);
+  icoDirEntry.writeUInt8(32, 0); // width
+  icoDirEntry.writeUInt8(32, 1); // height
+  icoDirEntry.writeUInt8(0, 2);  // color palette
+  icoDirEntry.writeUInt8(0, 3);  // reserved
+  icoDirEntry.writeUInt16LE(1, 4); // color planes
+  icoDirEntry.writeUInt16LE(32, 6); // bits per pixel
+  icoDirEntry.writeUInt32LE(png32.length, 8); // image size
+  icoDirEntry.writeUInt32LE(22, 12); // offset (6 + 16 = 22)
+
+  const icoBuffer = Buffer.concat([icoHeader, icoDirEntry, png32]);
+  fs.writeFileSync(path.join(projectRoot, "src/app/favicon.ico"), icoBuffer);
+  fs.writeFileSync(path.join(projectRoot, "public/favicon.ico"), icoBuffer);
+  console.log("✓ Wrote valid multi-format favicon.ico, icon.png, apple-icon.png");
+
+  console.log("All icons generated successfully!");
+}
+
+generate().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
