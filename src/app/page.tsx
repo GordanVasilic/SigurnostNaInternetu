@@ -382,7 +382,7 @@ export default function StudentHomePage() {
               Dobrodošao/la, <span className="text-cyan-400">{player.name}</span>!
             </h2>
             <p className="text-slate-300 text-base sm:text-lg mt-2 font-medium max-w-sm mx-auto">
-              Uspješno si prijavljen/a. Čekamo Sergeja da označi početak kviza sa projektora!
+              Uspješno si prijavljen/a.
             </p>
 
             {/* Waiting indicator */}
