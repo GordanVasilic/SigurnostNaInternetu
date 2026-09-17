@@ -270,7 +270,7 @@ export default function AdminPage() {
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 hover:text-white border border-slate-700 transition-colors"
             >
               <BarChart3 className="w-4 h-4 text-cyan-400" />
-              <span>Statistika</span>
+              <span>Statistika i Dijeljenje</span>
             </Link>
 
             <button

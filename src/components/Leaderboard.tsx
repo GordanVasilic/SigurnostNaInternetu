@@ -195,10 +195,10 @@ export function Leaderboard({ players, isAdmin = false, onResetQuiz }: Leaderboa
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-lg mb-8 px-2">
         <Link
           href="/stats"
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 transition-all active:scale-95 text-center"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-sm shadow-xl shadow-cyan-500/25 transition-all active:scale-95 text-center"
         >
-          <BarChart3 className="w-5 h-5 shrink-0" />
-          <span>Pogledaj detaljnu statistiku</span>
+          <BarChart3 className="w-5 h-5 shrink-0 text-cyan-200" />
+          <span>Statistika i Podijeli (Viber / WhatsApp / PDF)</span>
         </Link>
 
         {isAdmin && onResetQuiz && (
