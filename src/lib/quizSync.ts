@@ -38,13 +38,15 @@ function notifyLocalSubscribers(roomCode: string, state: QuizState) {
   }
 }
 
-function saveLocalState(roomCode: string, state: QuizState) {
+function saveLocalState(roomCode: string, state: QuizState, broadcast = false) {
   if (typeof window === "undefined") return;
   localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + roomCode, JSON.stringify(state));
   notifyLocalSubscribers(roomCode, state);
-  const ch = getBroadcastChannel(roomCode);
-  if (ch) {
-    ch.postMessage({ type: "STATE_UPDATE", state });
+  if (broadcast) {
+    const ch = getBroadcastChannel(roomCode);
+    if (ch) {
+      ch.postMessage({ type: "STATE_UPDATE", state });
+    }
   }
 }
 
@@ -98,6 +100,34 @@ export function subscribeToQuizState(
 
   // Mode B: Built-in Next.js Serverless API Polling (Zero setup required!)
   let active = true;
+  let lastKnownState: QuizState | null = null;
+
+  function areStatesEqual(prev: QuizState | null, next: QuizState): boolean {
+    if (!prev) return false;
+    if (prev.status !== next.status) return false;
+    if (prev.currentQuestionIndex !== next.currentQuestionIndex) return false;
+    if ((prev.resetId || 1) !== (next.resetId || 1)) return false;
+    if (prev.countdownStartTime !== next.countdownStartTime) return false;
+    if (prev.questionStartTime !== next.questionStartTime) return false;
+
+    const prevPlayers = prev.players || {};
+    const nextPlayers = next.players || {};
+    const prevKeys = Object.keys(prevPlayers);
+    const nextKeys = Object.keys(nextPlayers);
+    if (prevKeys.length !== nextKeys.length) return false;
+
+    for (const key of nextKeys) {
+      const p1 = prevPlayers[key];
+      const p2 = nextPlayers[key];
+      if (!p1 || !p2) return false;
+      if (p1.name !== p2.name || p1.avatar !== p2.avatar || p1.score !== p2.score) return false;
+      const a1Count = p1.answers ? Object.keys(p1.answers).length : 0;
+      const a2Count = p2.answers ? Object.keys(p2.answers).length : 0;
+      if (a1Count !== a2Count) return false;
+    }
+
+    return true;
+  }
 
   if (!localSubscribersMap.has(roomCode)) {
     localSubscribersMap.set(roomCode, new Set());
@@ -109,13 +139,35 @@ export function subscribeToQuizState(
       const res = await fetch(`/api/quiz?room=${encodeURIComponent(roomCode)}`);
       if (res.ok && active) {
         const data: QuizState = await res.json();
-        saveLocalState(roomCode, data);
+
+        // In lobby: guarantee no players belonging to this reset are dropped due to race conditions
+        if (
+          lastKnownState &&
+          data.status === "lobby" &&
+          (data.resetId || 1) === (lastKnownState.resetId || 1)
+        ) {
+          data.players = {
+            ...(lastKnownState.players || {}),
+            ...(data.players || {}),
+          };
+        }
+
+        if (areStatesEqual(lastKnownState, data)) {
+          return;
+        }
+
+        lastKnownState = data;
+        saveLocalState(roomCode, data, false);
         onUpdate(data);
       }
     } catch {
       // Fallback to local state if offline
       if (active) {
-        onUpdate(getLocalState(roomCode));
+        const local = getLocalState(roomCode);
+        if (!areStatesEqual(lastKnownState, local)) {
+          lastKnownState = local;
+          onUpdate(local);
+        }
       }
     }
   };
@@ -130,7 +182,11 @@ export function subscribeToQuizState(
   const channel = getBroadcastChannel(roomCode);
   const handleMessage = (e: MessageEvent) => {
     if (e.data && e.data.type === "STATE_UPDATE" && e.data.state && active) {
-      onUpdate(e.data.state);
+      const state = e.data.state as QuizState;
+      if (!areStatesEqual(lastKnownState, state)) {
+        lastKnownState = state;
+        onUpdate(state);
+      }
     }
   };
 
@@ -158,7 +214,7 @@ async function sendApiAction(roomCode: string, action: string, data?: unknown): 
     });
     if (res.ok) {
       const json = await res.json();
-      saveLocalState(roomCode, json);
+      saveLocalState(roomCode, json, true);
       return json;
     }
   } catch (err) {

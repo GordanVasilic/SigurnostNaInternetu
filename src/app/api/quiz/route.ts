@@ -23,56 +23,45 @@ function getCacheFilePath(): string {
 
 function readRoomsFromDisk(): Record<string, QuizState> {
   const p = getCacheFilePath();
-  try {
-    if (fs.existsSync(p)) {
-      const raw = fs.readFileSync(p, "utf-8");
-      if (raw && raw.trim().length > 0) {
-        return JSON.parse(raw);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, "utf-8");
+        if (raw && raw.trim().length > 0) {
+          return JSON.parse(raw);
+        }
       }
+      return {};
+    } catch {
+      // Small pause if file was locked by another process on Windows
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
     }
-  } catch {
-    // fallback
   }
-  return {};
+  // Fallback to existing memory cache if disk is temporarily locked
+  return rooms || {};
 }
 
 function writeRoomsToDisk(data: Record<string, QuizState>) {
-  try {
-    const p = getCacheFilePath();
-    const tempP = `${p}.${process.pid}.${Date.now()}.tmp`;
-    fs.writeFileSync(tempP, JSON.stringify(data));
+  const p = getCacheFilePath();
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      fs.renameSync(tempP, p);
+      fs.writeFileSync(p, JSON.stringify(data));
+      return;
     } catch {
-      fs.copyFileSync(tempP, p);
-      try {
-        fs.unlinkSync(tempP);
-      } catch {}
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
     }
-  } catch {
-    // fallback
   }
 }
 
 function getOrCreateRoom(roomCode = "sigurnost"): QuizState {
-  if (!rooms[roomCode]) {
-    const diskRooms = readRoomsFromDisk();
-    if (diskRooms[roomCode]) {
-      rooms[roomCode] = diskRooms[roomCode];
-    }
-  } else {
-    // If memory already has room, only update from disk if disk has a strictly newer updatedAt
-    const diskRooms = readRoomsFromDisk();
-    if (
-      diskRooms[roomCode] &&
-      (diskRooms[roomCode].updatedAt || 0) > (rooms[roomCode].updatedAt || 0)
-    ) {
-      rooms[roomCode] = diskRooms[roomCode];
-    }
-  }
+  const diskRooms = readRoomsFromDisk();
+  const diskRoom = diskRooms[roomCode];
+  const memRoom = rooms[roomCode];
 
-  if (!rooms[roomCode]) {
-    rooms[roomCode] = {
+  let state: QuizState;
+
+  if (!memRoom && !diskRoom) {
+    state = {
       status: "lobby",
       currentQuestionIndex: 0,
       questionStartTime: 0,
@@ -82,10 +71,56 @@ function getOrCreateRoom(roomCode = "sigurnost"): QuizState {
       updatedAt: Date.now(),
       players: {},
     };
+    rooms[roomCode] = state;
     writeRoomsToDisk(rooms);
+    return state;
   }
 
-  const state = rooms[roomCode];
+  if (!memRoom && diskRoom) {
+    rooms[roomCode] = diskRoom;
+    state = diskRoom;
+  } else if (memRoom && !diskRoom) {
+    state = memRoom;
+  } else {
+    // Both memory and disk exist: reconcile safely
+    const diskReset = diskRoom.resetId || 1;
+    const memReset = memRoom!.resetId || 1;
+
+    if (diskReset > memReset) {
+      rooms[roomCode] = diskRoom;
+      state = diskRoom;
+    } else if (memReset > diskReset) {
+      state = memRoom!;
+    } else {
+      // Same resetId: merge players so none are lost between processes/workers!
+      const activeReset = diskReset;
+      const base = (diskRoom.updatedAt || 0) >= (memRoom!.updatedAt || 0) ? diskRoom : memRoom!;
+
+      const mergedPlayers: Record<string, Player> = {};
+
+      for (const [id, p] of Object.entries(diskRoom.players || {})) {
+        if (!p.resetId || p.resetId === activeReset) {
+          mergedPlayers[id] = p;
+        }
+      }
+
+      for (const [id, p] of Object.entries(memRoom!.players || {})) {
+        if (!p.resetId || p.resetId === activeReset) {
+          if (!mergedPlayers[id] || (p.score || 0) >= (mergedPlayers[id].score || 0)) {
+            mergedPlayers[id] = p;
+          }
+        }
+      }
+
+      state = {
+        ...base,
+        players: mergedPlayers,
+        resetId: activeReset,
+      };
+      rooms[roomCode] = state;
+    }
+  }
+
   const now = Date.now();
 
   // 1. Auto-transition from countdown (3.5s) to Question 0
@@ -144,13 +179,17 @@ export async function POST(req: NextRequest) {
       case "join": {
         const player: Player = data.player;
         if (!state.players) state.players = {};
+        const currentResetId = state.resetId || 1;
+        player.resetId = currentResetId;
+
         const existing = state.players[player.id];
         state.players[player.id] = {
           ...(existing || {}),
           ...player,
-          resetId: state.resetId || 1,
+          resetId: currentResetId,
         };
         state.updatedAt = now;
+        rooms[room] = state;
         writeRoomsToDisk(rooms);
         break;
       }
@@ -160,6 +199,7 @@ export async function POST(req: NextRequest) {
         if (playerId && state.players && state.players[playerId]) {
           delete state.players[playerId];
           state.updatedAt = now;
+          rooms[room] = state;
           writeRoomsToDisk(rooms);
         }
         break;
@@ -169,6 +209,7 @@ export async function POST(req: NextRequest) {
         state.status = "countdown";
         state.countdownStartTime = now;
         state.updatedAt = now;
+        rooms[room] = state;
         writeRoomsToDisk(rooms);
         break;
       }
@@ -178,6 +219,7 @@ export async function POST(req: NextRequest) {
         state.currentQuestionIndex = data.questionIndex;
         state.questionStartTime = now;
         state.updatedAt = now;
+        rooms[room] = state;
         writeRoomsToDisk(rooms);
         break;
       }
@@ -203,6 +245,7 @@ export async function POST(req: NextRequest) {
             player.totalTimeMs = (player.totalTimeMs || 0) + timeTakenMs;
             state.players![playerId] = player;
             state.updatedAt = now;
+            rooms[room] = state;
             writeRoomsToDisk(rooms);
           }
         }
@@ -212,19 +255,22 @@ export async function POST(req: NextRequest) {
       case "finish": {
         state.status = "finished";
         state.updatedAt = now;
+        rooms[room] = state;
         writeRoomsToDisk(rooms);
         break;
       }
 
       case "reset": {
+        const newResetId = (state.resetId || 1) + 1;
         state.status = "lobby";
         state.currentQuestionIndex = 0;
         state.questionStartTime = 0;
         state.countdownStartTime = undefined;
         state.players = {}; // Always clear players on reset so everyone re-joins fresh
         state.resetAt = now;
-        state.resetId = (state.resetId || 1) + 1;
+        state.resetId = newResetId;
         state.updatedAt = now;
+        rooms[room] = state;
         writeRoomsToDisk(rooms);
         break;
       }

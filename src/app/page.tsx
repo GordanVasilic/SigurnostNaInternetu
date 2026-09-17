@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Navbar } from "@/components/Navbar";
 import { AvatarPicker } from "@/components/AvatarPicker";
 import { QuestionCard } from "@/components/QuestionCard";
@@ -18,6 +18,29 @@ import { QuizState, Player } from "@/types/quiz";
 import { Shield, Sparkles, Users, Lock, ArrowRight, Hourglass, Check, X } from "lucide-react";
 import { playStartFanfare } from "@/lib/sounds";
 
+function getStoredPlayer(): Player | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const session = sessionStorage.getItem("sergej_quiz_player");
+    if (session) return JSON.parse(session);
+    const local = localStorage.getItem("sergej_quiz_player");
+    if (local) return JSON.parse(local);
+  } catch {}
+  return null;
+}
+
+function saveStoredPlayer(p: Player | null) {
+  if (typeof window === "undefined") return;
+  if (p) {
+    const serialized = JSON.stringify(p);
+    sessionStorage.setItem("sergej_quiz_player", serialized);
+    localStorage.setItem("sergej_quiz_player", serialized);
+  } else {
+    sessionStorage.removeItem("sergej_quiz_player");
+    localStorage.removeItem("sergej_quiz_player");
+  }
+}
+
 export default function StudentHomePage() {
   const [quizState, setQuizState] = useState<QuizState>(createInitialState());
   const [player, setPlayer] = useState<Player | null>(null);
@@ -26,6 +49,7 @@ export default function StudentHomePage() {
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarOption>(AVATARS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [countdownNum, setCountdownNum] = useState<number | null>(null);
+  const lastJoinAttemptRef = useRef<number>(Date.now());
 
   // 1. Subscribe to quiz room state
   useEffect(() => {
@@ -35,18 +59,16 @@ export default function StudentHomePage() {
     return () => unsubscribe();
   }, []);
 
-  // 2. Restore saved player from localStorage if it belongs to active session
+  // 2. Restore saved player from session/local storage if it belongs to active session
   useEffect(() => {
-    const savedPlayer = localStorage.getItem("sergej_quiz_player");
-    if (!savedPlayer) return;
+    const parsed = getStoredPlayer();
+    if (!parsed) return;
 
     try {
-      const parsed: Player = JSON.parse(savedPlayer);
-
       // Only evaluate resetId when we have received real server state
-      if (quizState.updatedAt && quizState.resetId && parsed.resetId) {
+      if (quizState.resetId && parsed.resetId) {
         if (quizState.resetId > parsed.resetId) {
-          localStorage.removeItem("sergej_quiz_player");
+          saveStoredPlayer(null);
           setPlayer(null);
           return;
         }
@@ -55,7 +77,7 @@ export default function StudentHomePage() {
       // If quiz finished and is now back in lobby, discard old profile so user re-joins
       const hasFinishedGame = Boolean(parsed.answers && Object.keys(parsed.answers).length > 0);
       if (quizState.status === "lobby" && hasFinishedGame) {
-        localStorage.removeItem("sergej_quiz_player");
+        saveStoredPlayer(null);
         setPlayer(null);
         return;
       }
@@ -65,15 +87,14 @@ export default function StudentHomePage() {
       const matchedAvatar = AVATARS.find((a) => a.emoji === parsed.avatar);
       if (matchedAvatar) setSelectedAvatar(matchedAvatar);
     } catch {
-      localStorage.removeItem("sergej_quiz_player");
+      saveStoredPlayer(null);
       setPlayer(null);
     }
-  }, [quizState.resetId, quizState.status, quizState.updatedAt]);
+  }, [quizState.resetId, quizState.status]);
 
   // 3. Auto-logout on reset: ONLY when admin resets the quiz (resetId changes or quiz finished -> lobby)
   useEffect(() => {
     if (!player) return;
-    if (!quizState.updatedAt) return;
 
     const currentResetId = quizState.resetId || 1;
     const playerResetId = player.resetId || 1;
@@ -88,9 +109,9 @@ export default function StudentHomePage() {
     if (isResetByAdmin || isResetFromFinished) {
       setPlayer(null);
       setIsEditingProfile(false);
-      localStorage.removeItem("sergej_quiz_player");
+      saveStoredPlayer(null);
     }
-  }, [quizState.resetId, quizState.status, quizState.updatedAt, player]);
+  }, [quizState.resetId, quizState.status, player]);
 
   // 4. Keep local player score/state updated with server state
   useEffect(() => {
@@ -101,11 +122,11 @@ export default function StudentHomePage() {
   }, [quizState.players, player?.id]);
 
   // 5. Self-healing heartbeat: re-register player in lobby if missing from server (e.g. server restart)
+  // Throttled to prevent racing requests and UI flickering
   useEffect(() => {
     if (
       player &&
       quizState.status === "lobby" &&
-      quizState.updatedAt &&
       quizState.players &&
       !quizState.players[player.id] &&
       (!player.answers || Object.keys(player.answers).length === 0)
@@ -113,10 +134,14 @@ export default function StudentHomePage() {
       const currentResetId = quizState.resetId || 1;
       const playerResetId = player.resetId || 1;
       if (playerResetId >= currentResetId) {
-        joinPlayer(DEFAULT_ROOM_CODE, player).catch(console.warn);
+        const now = Date.now();
+        if (now - lastJoinAttemptRef.current > 3500) {
+          lastJoinAttemptRef.current = now;
+          joinPlayer(DEFAULT_ROOM_CODE, player).catch(console.warn);
+        }
       }
     }
-  }, [quizState.players, quizState.status, quizState.updatedAt, quizState.resetId, player]);
+  }, [quizState.players, quizState.status, quizState.resetId, player]);
 
   // 6. Handle countdown animation
   useEffect(() => {
@@ -163,7 +188,7 @@ export default function StudentHomePage() {
       if (serverState?.resetId) {
         profileData.resetId = serverState.resetId;
       }
-      localStorage.setItem("sergej_quiz_player", JSON.stringify(profileData));
+      saveStoredPlayer(profileData);
       setPlayer(profileData);
       if (serverState) {
         setQuizState(serverState);
@@ -353,7 +378,9 @@ export default function StudentHomePage() {
               </div>
 
               <div className="flex flex-wrap gap-2 justify-center max-h-48 overflow-y-auto p-1">
-                {Object.values(quizState.players || {}).map((p) => (
+                {Object.values(quizState.players || {})
+                  .sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0))
+                  .map((p) => (
                   <div
                     key={p.id}
                     className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${

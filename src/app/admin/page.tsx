@@ -175,7 +175,12 @@ export default function AdminPage() {
   };
 
   // Compute answers progress for current question
-  const playersList = Object.values(quizState.players || {});
+  const playersList = Object.values(quizState.players || {}).sort((a, b) => {
+    if (quizState.status === "lobby") {
+      return (a.joinedAt || 0) - (b.joinedAt || 0);
+    }
+    return (b.score || 0) - (a.score || 0);
+  });
   const totalPlayers = playersList.length;
   const answeredCount = playersList.filter(
     (p) => p.answers && p.answers[quizState.currentQuestionIndex] !== undefined
@@ -327,7 +332,7 @@ export default function AdminPage() {
                     {playersList.map((p) => (
                       <div
                         key={p.id}
-                        className="flex items-center gap-2 p-2 rounded-xl bg-slate-800/70 border border-slate-700/50 text-white animate-in zoom-in-95 duration-200"
+                        className="flex items-center gap-2 p-2 rounded-xl bg-slate-800/70 border border-slate-700/50 text-white transition-all duration-150"
                       >
                         <span className="text-2xl shrink-0">{p.avatar}</span>
                         <span className="font-bold text-xs truncate">{p.name}</span>
