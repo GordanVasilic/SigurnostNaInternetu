@@ -103,27 +103,6 @@ export default function StudentHomePage() {
     }
   }, [quizState.players, player?.id]);
 
-  // 5. Self-healing heartbeat: re-register player in lobby if missing from server (e.g. server restart)
-  // Throttled to prevent racing requests and UI flickering
-  useEffect(() => {
-    if (
-      player &&
-      quizState.status === "lobby" &&
-      quizState.players &&
-      !quizState.players[player.id] &&
-      (!player.answers || Object.keys(player.answers).length === 0)
-    ) {
-      const currentResetId = quizState.resetId || 1;
-      const playerResetId = player.resetId || 1;
-      if (playerResetId >= currentResetId) {
-        const now = Date.now();
-        if (now - lastJoinAttemptRef.current > 3500) {
-          lastJoinAttemptRef.current = now;
-          joinPlayer(DEFAULT_ROOM_CODE, player).catch(console.warn);
-        }
-      }
-    }
-  }, [quizState.players, quizState.status, quizState.resetId, player]);
 
   // 6. Handle countdown animation
   useEffect(() => {

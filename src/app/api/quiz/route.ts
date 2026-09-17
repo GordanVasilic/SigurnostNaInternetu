@@ -23,128 +23,75 @@ function getCacheFilePath(): string {
 
 function readRoomsFromDisk(): Record<string, QuizState> {
   const p = getCacheFilePath();
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      if (fs.existsSync(p)) {
-        const raw = fs.readFileSync(p, "utf-8");
-        if (raw && raw.trim().length > 0) {
-          return JSON.parse(raw);
-        }
+  try {
+    if (fs.existsSync(p)) {
+      const raw = fs.readFileSync(p, "utf-8");
+      if (raw && raw.trim().length > 0) {
+        return JSON.parse(raw);
       }
-      return {};
-    } catch {
-      // Small pause if file was locked by another process on Windows
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
     }
+  } catch {
+    // Ignore, memory is authoritative
   }
-  // Fallback to existing memory cache if disk is temporarily locked
-  return rooms || {};
+  return {};
 }
 
 function writeRoomsToDisk(data: Record<string, QuizState>) {
-  const p = getCacheFilePath();
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      fs.writeFileSync(p, JSON.stringify(data));
-      return;
-    } catch {
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+  try {
+    const p = getCacheFilePath();
+    const dir = path.dirname(p);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
+    const tempFile = p + ".tmp." + process.pid + "." + Math.random().toString(36).substring(2, 8);
+    fs.writeFileSync(tempFile, JSON.stringify(data), "utf-8");
+    fs.renameSync(tempFile, p);
+  } catch {
+    // Memory remains single source of truth
   }
 }
 
 function getOrCreateRoom(roomCode = "sigurnost", activePlayerId?: string | null): QuizState {
-  const diskRooms = readRoomsFromDisk();
-  const diskRoom = diskRooms[roomCode];
-  const memRoom = rooms[roomCode];
-
-  let state: QuizState;
-
-  if (!memRoom && !diskRoom) {
-    state = {
-      status: "lobby",
-      currentQuestionIndex: 0,
-      questionStartTime: 0,
-      durationSeconds: 20,
-      roomCode,
-      resetId: 1,
-      updatedAt: Date.now(),
-      players: {},
-    };
-    rooms[roomCode] = state;
-    writeRoomsToDisk(rooms);
-    return state;
-  }
-
-  if (!memRoom && diskRoom) {
-    rooms[roomCode] = diskRoom;
-    state = diskRoom;
-  } else if (memRoom && !diskRoom) {
-    state = memRoom;
-  } else {
-    // Both memory and disk exist: reconcile safely
-    const diskReset = diskRoom.resetId || 1;
-    const memReset = memRoom!.resetId || 1;
-
-    if (diskReset > memReset) {
-      rooms[roomCode] = diskRoom;
-      state = diskRoom;
-    } else if (memReset > diskReset) {
-      state = memRoom!;
+  // If not yet in memory, load from disk once on startup
+  if (!rooms[roomCode]) {
+    const disk = readRoomsFromDisk();
+    if (disk[roomCode]) {
+      rooms[roomCode] = disk[roomCode];
     } else {
-      // Same resetId: merge players so none are lost between processes/workers!
-      const activeReset = diskReset;
-      const base = (diskRoom.updatedAt || 0) >= (memRoom!.updatedAt || 0) ? diskRoom : memRoom!;
-
-      const mergedPlayers: Record<string, Player> = {};
-      const nowMs = Date.now();
-
-      for (const [id, p] of Object.entries(diskRoom.players || {})) {
-        if (!p.resetId || p.resetId === activeReset) {
-          mergedPlayers[id] = p;
-        }
-      }
-
-      for (const [id, p] of Object.entries(memRoom!.players || {})) {
-        if (!p.resetId || p.resetId === activeReset) {
-          if (!mergedPlayers[id] || (p.lastSeen || 0) >= (mergedPlayers[id].lastSeen || 0)) {
-            mergedPlayers[id] = p;
-          }
-        }
-      }
-
-      state = {
-        ...base,
-        players: mergedPlayers,
-        resetId: activeReset,
+      rooms[roomCode] = {
+        status: "lobby",
+        currentQuestionIndex: 0,
+        questionStartTime: 0,
+        durationSeconds: 20,
+        roomCode,
+        resetId: 1,
+        updatedAt: Date.now(),
+        players: {},
       };
-      rooms[roomCode] = state;
+      writeRoomsToDisk(rooms);
     }
   }
 
+  const state = rooms[roomCode];
   const now = Date.now();
 
-  // If this request is from an active player, refresh their lastSeen right away!
+  // If this request is from an active player, refresh their lastSeen right away in memory!
   if (activePlayerId && state.players?.[activePlayerId]) {
     state.players[activePlayerId].lastSeen = now;
-    if (rooms[roomCode]?.players?.[activePlayerId]) {
-      rooms[roomCode].players[activePlayerId].lastSeen = now;
-    }
   }
 
-  // Prune only truly inactive / dead connections in lobby (no contact for > 45s)
+  // Prune only truly inactive / abandoned connections in lobby (no poll for > 60s)
   if (state.status === "lobby" && state.players) {
     let pruned = false;
     for (const [id, p] of Object.entries(state.players)) {
       if (activePlayerId && id === activePlayerId) continue;
       const lastActive = p.lastSeen || p.joinedAt || now;
-      if (now - lastActive > 45000) {
+      if (now - lastActive > 60000) {
         delete state.players[id];
         pruned = true;
       }
     }
     if (pruned) {
-      rooms[roomCode] = state;
       writeRoomsToDisk(rooms);
     }
   }
