@@ -299,7 +299,7 @@ export default function StudentHomePage() {
 
               <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-center gap-2 text-sm text-slate-300 font-medium">
                 <Lock className="w-4 h-4 text-cyan-400" />
-                <span>14 pitanja • 20 sekundi po pitanju • Sinhronizovano</span>
+                <span>14 pitanja • 20 sekundi po pitanju</span>
               </div>
             </div>
           </div>

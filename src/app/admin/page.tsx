@@ -5,7 +5,6 @@ import confetti from "canvas-confetti";
 import { Navbar } from "@/components/Navbar";
 import { QRCodeDisplay } from "@/components/QRCodeDisplay";
 import { Leaderboard } from "@/components/Leaderboard";
-import { FirebaseBanner } from "@/components/FirebaseBanner";
 import { QUIZ_QUESTIONS } from "@/data/questions";
 import { playStartFanfare, stopAllSounds } from "@/lib/sounds";
 import {
@@ -238,7 +237,6 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
       <Navbar showHomeLink={true} />
-      <FirebaseBanner />
 
       <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 flex flex-col">
         {/* Top Control Bar */}
