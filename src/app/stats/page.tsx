@@ -50,6 +50,13 @@ export default function StatisticsPage() {
   const [stats, setStats] = useState<QuestionStat[]>([]);
   const [copied, setCopied] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsAdmin(sessionStorage.getItem("sergej_admin_auth") === "true");
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
@@ -178,7 +185,7 @@ export default function StatisticsPage() {
 
       {/* Screen Navbar (Hidden on Print) */}
       <div className="no-print">
-        <Navbar showHomeLink={true} />
+        <Navbar showHomeLink={true} homeHref={isAdmin ? "/admin" : "/"} />
       </div>
 
       <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 flex flex-col print:p-0 print:max-w-none">
@@ -222,11 +229,11 @@ export default function StatisticsPage() {
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6 no-print">
           <div>
             <Link
-              href="/"
+              href={isAdmin ? "/admin" : "/"}
               className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors mb-2"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Nazad na kviz</span>
+              <span>{isAdmin ? "Nazad na Admin panel" : "Nazad na kviz"}</span>
             </Link>
             <h1 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-2.5">
               <BarChart3 className="w-7 h-7 text-cyan-400" />

@@ -190,7 +190,7 @@ export default function AdminPage() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
-        <Navbar showHomeLink={true} />
+        <Navbar showHomeLink={true} homeHref="/admin" />
         <main className="flex-1 flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-slate-900/90 border border-slate-800 rounded-3xl p-7 shadow-2xl text-center">
             <div className="w-14 h-14 rounded-2xl bg-cyan-500/20 text-cyan-400 mx-auto flex items-center justify-center mb-4 border border-cyan-500/30">
@@ -241,7 +241,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
-      <Navbar showHomeLink={true} />
+      <Navbar showHomeLink={true} homeHref="/admin" />
 
       <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 flex flex-col">
         {/* Top Control Bar */}

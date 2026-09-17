@@ -8,9 +8,16 @@ import { toggleSound, isSoundEnabled } from "@/lib/sounds";
 interface NavbarProps {
   showAdminLink?: boolean;
   showHomeLink?: boolean;
+  homeHref?: string;
+  homeLabel?: string;
 }
 
-export function Navbar({ showAdminLink = false, showHomeLink = false }: NavbarProps) {
+export function Navbar({
+  showAdminLink = false,
+  showHomeLink = false,
+  homeHref = "/",
+  homeLabel = "Početna",
+}: NavbarProps) {
   const [soundOn, setSoundOn] = useState(true);
 
   useEffect(() => {
@@ -26,7 +33,7 @@ export function Navbar({ showAdminLink = false, showHomeLink = false }: NavbarPr
     <header className="sticky top-0 z-50 backdrop-blur-md bg-slate-900/80 border-b border-slate-800 text-white shadow-sm">
       <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
         <Link
-          href="/"
+          href={homeHref}
           className="flex items-center gap-2.5 font-bold text-lg hover:opacity-90 transition-opacity"
         >
           <div className="p-2 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl shadow-md text-white">
@@ -54,11 +61,11 @@ export function Navbar({ showAdminLink = false, showHomeLink = false }: NavbarPr
 
           {showHomeLink && (
             <Link
-              href="/"
+              href={homeHref}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white transition-colors border border-slate-700"
             >
               <Home className="w-4 h-4 text-cyan-400" />
-              <span>Početna</span>
+              <span>{homeLabel}</span>
             </Link>
           )}
 
