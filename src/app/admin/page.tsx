@@ -58,6 +58,20 @@ export default function AdminPage() {
     return () => unsubscribe();
   }, []);
 
+  // Prevent accidental close or refresh of Admin projector view while quiz is active
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (quizState.status === "countdown" || quizState.status === "question") {
+        e.preventDefault();
+        e.returnValue = "Kviz je u toku na projektoru! Ako osvježite ili zatvorite stranicu, prekinućete prikaz.";
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [quizState.status]);
+
   // Live timer tracker for admin projector view
   useEffect(() => {
     if (quizState.status !== "question" || !quizState.questionStartTime) {

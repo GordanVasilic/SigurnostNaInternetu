@@ -44,9 +44,21 @@ export default function StudentHomePage() {
     } catch {}
   }, []);
 
-  // When closing/unloading this tab: remove player from lobby immediately
+  // When closing, refreshing, or navigating away:
   useEffect(() => {
-    const handleUnload = () => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const isQuizActive =
+        quizStateRef.current.status === "countdown" ||
+        quizStateRef.current.status === "question";
+
+      // If quiz has started, warn user that leaving will exit the quiz!
+      if (playerRef.current && isQuizActive) {
+        e.preventDefault();
+        e.returnValue = "Kviz je u toku! Ako zatvorite ili osvježite stranicu, izaći ćete iz kviza.";
+        return e.returnValue;
+      }
+
+      // If in lobby, clean up player
       if (playerRef.current && quizStateRef.current.status === "lobby") {
         sendBeaconLeave(DEFAULT_ROOM_CODE, playerRef.current.id);
       }
@@ -56,10 +68,40 @@ export default function StudentHomePage() {
       } catch {}
     };
 
-    window.addEventListener("beforeunload", handleUnload);
+    const handlePageHide = () => {
+      if (playerRef.current && quizStateRef.current.status === "lobby") {
+        sendBeaconLeave(DEFAULT_ROOM_CODE, playerRef.current.id);
+      }
+      try {
+        sessionStorage.removeItem("sergej_quiz_player");
+        localStorage.removeItem("sergej_quiz_player");
+      } catch {}
+    };
+
+    const handlePopState = () => {
+      const isQuizActive =
+        quizStateRef.current.status === "countdown" ||
+        quizStateRef.current.status === "question";
+
+      if (playerRef.current && isQuizActive) {
+        const confirmLeave = window.confirm(
+          "Kviz je u toku! Ako napustite stranicu, izaći ćete iz kviza. Da li ste sigurni?"
+        );
+        if (!confirmLeave) {
+          window.history.pushState(null, "", window.location.href);
+        }
+      }
+    };
+
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener("popstate", handlePopState);
 
     return () => {
-      window.removeEventListener("beforeunload", handleUnload);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("popstate", handlePopState);
     };
   }, []);
 

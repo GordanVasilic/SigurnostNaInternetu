@@ -255,6 +255,10 @@ export function QuestionCard({
           );
         })}
       </div>
+
+      <p className="text-[11px] sm:text-xs text-slate-500 font-medium text-center mt-4">
+        ⚠️ Ne zatvarajte i ne osvježavajte stranicu dok traje kviz
+      </p>
     </div>
   );
 }
