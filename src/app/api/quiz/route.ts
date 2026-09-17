@@ -97,17 +97,25 @@ function getOrCreateRoom(roomCode = "sigurnost"): QuizState {
       const base = (diskRoom.updatedAt || 0) >= (memRoom!.updatedAt || 0) ? diskRoom : memRoom!;
 
       const mergedPlayers: Record<string, Player> = {};
+      const nowMs = Date.now();
 
       for (const [id, p] of Object.entries(diskRoom.players || {})) {
         if (!p.resetId || p.resetId === activeReset) {
-          mergedPlayers[id] = p;
+          // Only keep active players in lobby
+          const lastActive = p.lastSeen || p.joinedAt || 0;
+          if (diskRoom.status !== "lobby" || nowMs - lastActive < 8000) {
+            mergedPlayers[id] = p;
+          }
         }
       }
 
       for (const [id, p] of Object.entries(memRoom!.players || {})) {
         if (!p.resetId || p.resetId === activeReset) {
-          if (!mergedPlayers[id] || (p.score || 0) >= (mergedPlayers[id].score || 0)) {
-            mergedPlayers[id] = p;
+          const lastActive = p.lastSeen || p.joinedAt || 0;
+          if (memRoom!.status !== "lobby" || nowMs - lastActive < 8000) {
+            if (!mergedPlayers[id] || (p.lastSeen || 0) >= (mergedPlayers[id].lastSeen || 0)) {
+              mergedPlayers[id] = p;
+            }
           }
         }
       }
@@ -122,6 +130,22 @@ function getOrCreateRoom(roomCode = "sigurnost"): QuizState {
   }
 
   const now = Date.now();
+
+  // Prune inactive players in lobby (if closed / no heartbeat for > 8s)
+  if (state.status === "lobby" && state.players) {
+    let pruned = false;
+    for (const [id, p] of Object.entries(state.players)) {
+      const lastActive = p.lastSeen || p.joinedAt || 0;
+      if (now - lastActive > 8000) {
+        delete state.players[id];
+        pruned = true;
+      }
+    }
+    if (pruned) {
+      rooms[roomCode] = state;
+      writeRoomsToDisk(rooms);
+    }
+  }
 
   // 1. Auto-transition from countdown (3.5s) to Question 0
   if (state.status === "countdown" && state.countdownStartTime) {
@@ -154,11 +178,20 @@ function getOrCreateRoom(roomCode = "sigurnost"): QuizState {
   return state;
 }
 
-// GET /api/quiz?room=sigurnost
+// GET /api/quiz?room=sigurnost&player=...
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const roomCode = searchParams.get("room") || "sigurnost";
+  const playerId = searchParams.get("player");
   const state = getOrCreateRoom(roomCode);
+  const now = Date.now();
+
+  if (playerId && state.players?.[playerId]) {
+    state.players[playerId].lastSeen = now;
+    if (rooms[roomCode]?.players?.[playerId]) {
+      rooms[roomCode].players[playerId].lastSeen = now;
+    }
+  }
 
   return NextResponse.json(state, {
     headers: {
@@ -196,8 +229,13 @@ export async function POST(req: NextRequest) {
 
       case "leave": {
         const playerId = data?.playerId;
-        if (playerId && state.players && state.players[playerId]) {
-          delete state.players[playerId];
+        if (playerId) {
+          if (state.players && state.players[playerId]) {
+            delete state.players[playerId];
+          }
+          if (rooms[room]?.players?.[playerId]) {
+            delete rooms[room].players[playerId];
+          }
           state.updatedAt = now;
           rooms[room] = state;
           writeRoomsToDisk(rooms);

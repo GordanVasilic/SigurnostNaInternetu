@@ -13,6 +13,7 @@ export interface Player {
   score: number;
   totalTimeMs: number;
   joinedAt: number;
+  lastSeen?: number;
   resetId?: number;
   answers?: Record<string, PlayerAnswer>;
 }

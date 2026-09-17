@@ -74,7 +74,8 @@ export function createInitialState(roomCode = DEFAULT_ROOM_CODE): QuizState {
 // 1. Subscribe to Live Quiz State (Firebase WebSockets OR Built-in Vercel API Polling)
 export function subscribeToQuizState(
   roomCode: string,
-  onUpdate: (state: QuizState) => void
+  onUpdate: (state: QuizState) => void,
+  getPlayerId?: () => string | undefined
 ): () => void {
   // Mode A: Firebase Realtime Database
   if (isFirebaseConfigured && db) {
@@ -136,21 +137,13 @@ export function subscribeToQuizState(
 
   const fetchApiState = async () => {
     try {
-      const res = await fetch(`/api/quiz?room=${encodeURIComponent(roomCode)}`);
+      const pid = getPlayerId ? getPlayerId() : undefined;
+      const url = pid
+        ? `/api/quiz?room=${encodeURIComponent(roomCode)}&player=${encodeURIComponent(pid)}`
+        : `/api/quiz?room=${encodeURIComponent(roomCode)}`;
+      const res = await fetch(url);
       if (res.ok && active) {
         const data: QuizState = await res.json();
-
-        // In lobby: guarantee no players belonging to this reset are dropped due to race conditions
-        if (
-          lastKnownState &&
-          data.status === "lobby" &&
-          (data.resetId || 1) === (lastKnownState.resetId || 1)
-        ) {
-          data.players = {
-            ...(lastKnownState.players || {}),
-            ...(data.players || {}),
-          };
-        }
 
         if (areStatesEqual(lastKnownState, data)) {
           return;
@@ -245,6 +238,30 @@ export async function leavePlayer(roomCode: string, playerId: string): Promise<v
 
   // Use Built-in API
   await sendApiAction(roomCode, "leave", { playerId });
+}
+
+// 2c. Send immediate leave beacon on tab unload/close
+export function sendBeaconLeave(roomCode: string, playerId: string) {
+  if (typeof window === "undefined" || !playerId) return;
+  const payload = JSON.stringify({
+    room: roomCode,
+    action: "leave",
+    data: { playerId },
+  });
+
+  if (navigator.sendBeacon) {
+    const blob = new Blob([payload], { type: "application/json" });
+    navigator.sendBeacon("/api/quiz", blob);
+  } else {
+    try {
+      fetch("/api/quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+        keepalive: true,
+      });
+    } catch {}
+  }
 }
 
 // 3. Admin starts countdown and then question 1

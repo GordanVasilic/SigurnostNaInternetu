@@ -12,11 +12,22 @@ import {
   subscribeToQuizState,
   joinPlayer,
   submitAnswer,
+  sendBeaconLeave,
   createInitialState,
 } from "@/lib/quizSync";
 import { QuizState, Player } from "@/types/quiz";
-import { Shield, Sparkles, Users, Lock, ArrowRight, Hourglass, Check, X } from "lucide-react";
+import { Shield, Sparkles, Users, Lock, ArrowRight, Hourglass, Check, X, AlertTriangle } from "lucide-react";
 import { playStartFanfare } from "@/lib/sounds";
+
+function getDeviceId(): string {
+  if (typeof window === "undefined") return "dev_server";
+  let id = localStorage.getItem("sergej_quiz_device_id");
+  if (!id) {
+    id = "dev_" + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4);
+    localStorage.setItem("sergej_quiz_device_id", id);
+  }
+  return id;
+}
 
 function getStoredPlayer(): Player | null {
   if (typeof window === "undefined") return null;
@@ -49,15 +60,73 @@ export default function StudentHomePage() {
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarOption>(AVATARS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [countdownNum, setCountdownNum] = useState<number | null>(null);
+  const [tabId] = useState(() => "tab_" + Math.random().toString(36).substring(2, 9) + "_" + Date.now().toString(36));
+  const [isSuperseded, setIsSuperseded] = useState(false);
   const lastJoinAttemptRef = useRef<number>(Date.now());
 
-  // 1. Subscribe to quiz room state
+  // Claim active tab on device: only the newest opened page remains active
   useEffect(() => {
-    const unsubscribe = subscribeToQuizState(DEFAULT_ROOM_CODE, (state) => {
-      setQuizState(state);
-    });
+    localStorage.setItem("sergej_quiz_active_tab", tabId);
+
+    let channel: BroadcastChannel | null = null;
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      channel = new BroadcastChannel("sergej_tab_channel");
+      channel.postMessage({ type: "NEW_TAB_CLAIMED", activeTabId: tabId });
+
+      const handleMessage = (e: MessageEvent) => {
+        if (e.data && e.data.type === "NEW_TAB_CLAIMED" && e.data.activeTabId !== tabId) {
+          setIsSuperseded(true);
+        }
+      };
+      channel.addEventListener("message", handleMessage);
+    }
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "sergej_quiz_active_tab" && e.newValue && e.newValue !== tabId) {
+        setIsSuperseded(true);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      if (channel) {
+        channel.close();
+      }
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [tabId]);
+
+  // When closing/unloading the page: remove player from lobby immediately
+  useEffect(() => {
+    const handleUnload = () => {
+      if (typeof window === "undefined") return;
+      const currentActive = localStorage.getItem("sergej_quiz_active_tab");
+      if (currentActive === tabId && player && quizState.status === "lobby") {
+        sendBeaconLeave(DEFAULT_ROOM_CODE, player.id);
+        localStorage.removeItem("sergej_quiz_active_tab");
+      }
+    };
+
+    window.addEventListener("pagehide", handleUnload);
+    window.addEventListener("beforeunload", handleUnload);
+
+    return () => {
+      window.removeEventListener("pagehide", handleUnload);
+      window.removeEventListener("beforeunload", handleUnload);
+    };
+  }, [player, quizState.status, tabId]);
+
+  // 1. Subscribe to quiz room state (sending heartbeat if in lobby)
+  useEffect(() => {
+    const unsubscribe = subscribeToQuizState(
+      DEFAULT_ROOM_CODE,
+      (state) => {
+        setQuizState(state);
+      },
+      () => (isSuperseded ? undefined : player?.id)
+    );
     return () => unsubscribe();
-  }, []);
+  }, [player?.id, isSuperseded]);
 
   // 2. Restore saved player from session/local storage if it belongs to active session
   useEffect(() => {
@@ -167,8 +236,7 @@ export default function StudentHomePage() {
     if (!name.trim()) return;
 
     setIsSubmitting(true);
-    const existingId = player?.id;
-    const playerId = existingId || ("p_" + Math.random().toString(36).substring(2, 9));
+    const playerId = "p_" + getDeviceId();
     const currentSessionResetId = quizState.resetId || 1;
 
     const profileData: Player = {
@@ -238,6 +306,42 @@ export default function StudentHomePage() {
   // Determine current question player answer status
   const currentAnswer = player?.answers?.[quizState.currentQuestionIndex];
   const hasAnsweredCurrent = Boolean(currentAnswer);
+
+  if (isSuperseded) {
+    return (
+      <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-slate-900/95 border border-slate-800 rounded-3xl p-6 sm:p-8 text-center shadow-2xl">
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 mx-auto flex items-center justify-center mb-4 border border-amber-500/30">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-white">Stranica je otvorena u drugom tabu</h2>
+            <p className="text-slate-400 text-sm mt-3 leading-relaxed">
+              Kviz je otvoren u novijem prozoru ili tabu na ovom uređaju. Sa jednog uređaja dozvoljen je samo <strong>jedan nalog</strong> u kvizu.
+            </p>
+            <p className="text-slate-500 text-xs mt-2">
+              Ova stranica je automatski odjavljena kako ne bi došlo do dupliranja naloga.
+            </p>
+            <button
+              onClick={() => {
+                localStorage.setItem("sergej_quiz_active_tab", tabId);
+                if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+                  const channel = new BroadcastChannel("sergej_tab_channel");
+                  channel.postMessage({ type: "NEW_TAB_CLAIMED", activeTabId: tabId });
+                  channel.close();
+                }
+                setIsSuperseded(false);
+              }}
+              className="mt-6 w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-sm shadow-lg shadow-cyan-500/25 transition-all active:scale-95"
+            >
+              Aktiviraj kviz u ovom tabu
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
